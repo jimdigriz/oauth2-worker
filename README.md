@@ -56,8 +56,8 @@ Where:
  * **`client_id`:** is the identifier supplied by your OAuth2 platform for your client application
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (this is required, but there should be no need to change it)
      * this must be registered with your OAuth2 provider
- * **`discovery_endpoint`:** points to the base URL of your
-     * Google for example uses [https://accounts.google.com/.well-known/openid-configuration](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
+ * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
+     * Google for example uses [https://accounts.google.com](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
      * if your platform does not support discovery then you must supply:
          * **`authorization_endpoint` [required]**: this is where the user logins in using their credentials
          * **`token_endpoint` [recommended]:** without this `PKCE` (`code` flow) is not supported and the more risky `implicit` flow has to be used
