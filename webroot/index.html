@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+
+  <title>OAuth2 Worker Demo</title>
+
+  <script src="oauth2.js"></script>
+ </head>
+ <body>
+  <table>
+   <tr>
+    <th>Name:</th>
+    <td id="name">...</td>
+   </tr>
+   <tr>
+    <th>Email:</th>
+    <td id="email">...</td>
+   </tr>
+   <tr>
+    <th>Login:</th>
+    <td><button id="button" disabled>Loading...</button>
+   </tr>
+  </table>
+  <script>
+    const authorize = (promise) => {
+      const button = document.getElementById('button');
+      button.textContent = 'Login';
+      button.removeAttribute('disabled');
+      button.onclick = function(e) {
+        e.preventDefault();
+
+        new Promise((resolve, reject) => {
+          button.setAttribute('disabled', '');
+          button.textContent = 'Logging in...';
+          promise.resolve({ resolve: resolve, reject: reject });
+        }).then(data => {
+          console.log('success', data);
+          button.textContent = 'Logged in';
+        }).catch(error => {
+          console.log('failed', error);
+          button.textContent = 'Login Failed';
+        });
+      };
+    };
+
+    const oauth2 = new OAuth2({
+      client_id: '...',
+      redirect_uri: '/oauth2-redirect.html',
+      discovery_endpoint: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...',
+      authorize_callback: authorize
+    });
+
+    oauth2.whoami().then(whoami => {
+      document.getElementById('name').textContent = whoami.name;
+      document.getElementById('email').textContent = whoami.email;
+    });
+  </script>
+ </body>
+</html>
