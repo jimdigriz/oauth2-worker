@@ -26,6 +26,7 @@ class OAuth2 {
 	}
 
 	_fetch(uri, options) {
+		options = options || {}
 		if (options.headers) {
 			Object.keys(options.headers).forEach((k) => {
 				const v = options.headers[k];

@@ -1,6 +1,11 @@
-A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing access and refresh tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
+A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
 
-By storing the tokens in the web worker it is made impossible for any third party JavaScript to access them.  For the main application a [Promise based interface](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) is provided to make working with it similar to working with the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API).
+The Web Worker becomes a trusted key vault and enables your SPA to retain refresh tokens with zero risk of any third party JavaScript being able to access them.
+
+Interaction with the Web Worker is via a [Promise based interface](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) that tries mimic the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API); requests will have a suitable HTTP `Authorization` header added to them.
+
+
+refresh token
 
 ## Related Links
 
@@ -24,23 +29,98 @@ Check out the project with:
 
 # Demo
 
-    python3 -m http.server --bind 127.0.0.1 --directory webroot
+    ./demo.py
 
-Now open http://localhost:8000 in your browser.
+Now open http://localhost:5000 in your browser, open developer tools and show the JavaScript console and click on Login.
 
 # Usage
 
-    import { OAuth2 } from './oauth2.js';
+You will need to include in your project from the [`webroot`](webroot) directory:
 
-    const authorize = (promise) => {
-      dispatch('message', { type: 'authorize', promise: promise });
-    };
+ * **`oauth2.js`:** application interface
+ * **`oauth2-worker.js`:** web worker
+ * **`oauth2-redirect.html` and `oauth2-redirect.js`:** page used to bounce the authentication off
+
+It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference.
+
+## `new OAuth2()`
+
+We start by initialising a fresh OAuth2 instance:
+
     const oauth2 = new OAuth2({
       client_id: '...',
       redirect_uri: '/oauth2-redirect.html',
       discovery_endpoint: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...',
       authorize_callback: authorize
     });
+
+Where:
+
+ * **`client_id`:** is the identifier supplied by your OAuth2 pltform for your client application
+ * **`redirect_uri`:** the redirect URL to bounce the the authentication through (this is required, but there should be no need to change it)
+     * this must be registered with your OAuth2 provider
+ * **`discovery_endpoint`:** points to the base URL of your
+     * Google for example uses [https://accounts.google.com/.well-known/openid-configuration](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
+     * if your platform does not support discovery then you must supply:
+         * **`authorization_endpoint` [required]**: this is where the user logins in using their credentials
+         * **`token_endpoint` [recommended]:** without this `PKCE` (`code` flow) is not supported and the more risky `implicit` flow has to be used
+         * **`userinfo_endpoint` [optional]:** endpoint that can provide details about the user bearing the token
+ * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
+
+### `authorize_callback`
+
+Assuming you have a button on your page (with the ID `button`) you can use something like:
+
+    const authorize = (promise) => {
+      // set up the UI to reflect we need to log in but
+      // as our login window will be opened in a new tab,
+      // we require an user interaction (click) to open it
+      document.getElementById('button').onclick = function(e) {
+        e.preventDefault();
+
+        new Promise((resolve, reject) => {
+          // set up the UI to reflect that we are attempting to login
+          promise.resolve({ resolve: resolve, reject: reject });
+        }).then(data => {
+          // set up the UI to reflect that login has been successful
+          console.log('success', data);
+        }).catch(error => {
+          // set up the UI to reflect that login has failed
+          console.log('failed', error);
+        });
+      };
+    };
+
+We provide a callback that is called when authentication is required, and when called passes the resolvable parts to promise.  The UI at this point should be set up to indicate to the user that an authentication is required and a interaction (such as a buttom/form click) to be made.  On the interaction, we resolve the promise we were passed which kicks off the authentication, and in doing so we pass in a promise of our own to get feedback on the outcome of the authentication.
+
+## `.whoami()`
+
+    oauth2.whoami().then(whoami => { console.log(whoami) });
+
+Returns the JSON parsed version of either:
+
+ * `id_token` from the authentication
+ * if no `id_token` was provided by the endpoint, then [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo) is consulted
+
+If nothing is avaliable, then `null` is returned.
+
+## `.fetch()`
+
+You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for a overview of this.
+
+    oauth2.fetch('https://...', { method: 'PUT', headers: { 'Content-Type': ... }, body: ..., ... }).then(response => {
+      console.log(response);
+    });
+
+Differing to the Fetch API, `body` is either a string ([instance types are not available](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#Body) as they are not serialisable to the Web Worker) or [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) (which will force `Content-Type` to `application/x-www-form-urlencoded; charset=utf-8`).
+
+The response on success is:
+
+    { ok: true, status: 200, headers: { ... }, body: "..." }
+
+On error, response is:
+
+    { ok: false, error: "..." }
 
 ## HTTP Headers
 

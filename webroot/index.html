@@ -56,6 +56,9 @@
       document.getElementById('name').textContent = whoami.name;
       document.getElementById('email').textContent = whoami.email;
     });
+    oauth2.fetch(location.origin + '/userinfo').then(response => {
+      console.log('fetch', response)
+    });
   </script>
  </body>
 </html>
