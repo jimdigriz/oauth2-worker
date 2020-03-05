@@ -13,7 +13,8 @@ You will need:
  * OAuth2 endpoint:
      * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
          * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
-     * supports [PKCE (strongly recommended)](https://oauth.net/2/pkce/) though supported is fallback to [`implicit`](https://tools.ietf.org/html/rfc6749#section-1.3.2)
+     * supports [PKCE (strongly recommended)](https://oauth.net/2/pkce/)
+         * [`implicit`](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
  * `client_id` to use with your application
 
 Check out the project with:
@@ -37,12 +38,8 @@ Now open http://localhost:8000 in your browser.
     const oauth2 = new OAuth2({
       client_id: '...',
       redirect_uri: '/oauth2-redirect.html',
-      endpoint: {
-        discovery: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...'
-      },
-      callback: {
-        authorize: authorize
-      }
+      discovery_endpoint: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...',
+      authorize_callback: authorize
     });
 
 ## HTTP Headers
