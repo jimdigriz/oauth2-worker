@@ -34,7 +34,7 @@ Now open http://localhost:5000 in your browser, open developer tools and show th
 
 You will need to include in your project from the [`webroot`](webroot) directory:
 
- * **`oauth2.js`:** application interface
+ * **`oauth2.js`:** application interface and imported into your project
  * **`oauth2-worker.js`:** web worker
  * **`oauth2-redirect.html` and `oauth2-redirect.js`:** page used to bounce the authentication off
 
