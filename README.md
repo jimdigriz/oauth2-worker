@@ -53,7 +53,7 @@ We start by initialising a fresh OAuth2 instance:
 
 Where:
 
- * **`client_id`:** is the identifier supplied by your OAuth2 pltform for your client application
+ * **`client_id`:** is the identifier supplied by your OAuth2 platform for your client application
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (this is required, but there should be no need to change it)
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your
@@ -88,7 +88,7 @@ Assuming you have a button on your page (with the ID `button`) you can use somet
       };
     };
 
-We provide a callback that is called when authentication is required, and when called passes the resolvable parts to promise.  The UI at this point should be set up to indicate to the user that an authentication is required and a interaction (such as a buttom/form click) to be made.  On the interaction, we resolve the promise we were passed which kicks off the authentication, and in doing so we pass in a promise of our own to get feedback on the outcome of the authentication.
+We provide a callback that is called when authentication is required, and when called passes the resolvable parts to promise.  The UI at this point should be set up to indicate to the user that an authentication is required and a interaction (such as a button/form click) to be made.  On the interaction, we resolve the promise we were passed which kicks off the authentication, and in doing so we pass in a promise of our own to get feedback on the outcome of the authentication.
 
 ## `.whoami()`
 
@@ -99,7 +99,7 @@ Returns the JSON parsed version of either:
  * `id_token` from the authentication
  * if no `id_token` was provided by the endpoint, then [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo) is consulted
 
-If nothing is avaliable, then `null` is returned.
+If nothing is available, then `null` is returned.
 
 ## `.fetch()`
 
