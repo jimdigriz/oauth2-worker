@@ -1,6 +1,6 @@
 A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
 
-It is [generally considered unsafe to use `implicit` grant with SPA](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but in this project we use a Web Worker as a trusted key vault which keeps all your tokens locked away with zero risk of any third party JavaScript being able to access them.  This means we can now even retain the refresh token too to support long logins.
+It is [generally considered unsafe to use `implicit` grant with SPA](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but in this project we use a Web Worker as a trusted key vault which keeps all your tokens locked away with zero risk of any third party JavaScript being able to access them.  This means we can now even retain the refresh token too to support long user sessions without regular interactive reauthentication.
 
 Interaction with the Web Worker is via a [Promise based interface](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) that tries mimic the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API); requests will have a suitable HTTP `Authorization` header added to them.
 
