@@ -27,11 +27,38 @@ function init(data) {
 	data.data.scopes = data.data.scopes || [];
 
 	config = new Promise((resolve, reject) => {
-		if (data.data.discovery_document) {
-			data.data.openid = JSON.parse(data.data.discovery_document);
+		function validate(discovery) {
+			discovery = Object.keys(data.data.discovery_overlay || {}).reduce((a, k) => {
+				a[k] = data.data.discovery_overlay[k];
+				return a;
+			}, discovery);
+
+			discovery.response_types_supported = discovery.response_types_supported || [];
+			discovery.code_challenge_methods_supported = discovery.code_challenge_methods_supported || [];
+
+			outer: switch (true) {
+			case discovery.response_types_supported.includes('code'):
+				switch (true) {
+				case discovery.code_challenge_methods_supported.includes('S256'):
+				case discovery.code_challenge_methods_supported.includes('plain'):
+					break outer;
+				}
+				// FALLTHROUGH
+			case discovery.response_types_supported.includes('token'):
+				break outer;
+			default:
+				throw new Error("neither 'code' or 'token' response type supported");
+			}
+
+			const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
+			if (overlap.length < data.data.scopes.length) throw new Error('scopes not available');
+
+			data.data.openid = discovery;
 			resolve(data.data);
-			return
-                }
+		};
+
+		if (!data.data.discovery_endpoint)
+			return validate({});
 
 		fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
 			response => {
@@ -39,17 +66,14 @@ function init(data) {
 				return response.json();
 			}
 		).then(
-			json => {
-				if (!(json.response_types_supported.includes('code') || json.response_types_supported.includes('token'))) throw new Error("only 'code' and 'token' supported");
-				const overlap = data.data.scopes.filter(scope => json.scopes_supported.includes(scope));
-				if (overlap.length < data.data.scopes.length) throw new Error('scopes not available');
-				data.data.openid = json;
-				resolve(data.data);
+			discovery => {
+				validate(discovery);
 			}
 		).catch(
-			e => {
+			error => {
 				reject(null);
-				throw new Error('discovery: ' + e.message);
+				console.error('init', error.message);
+				throw new Error('init: ' + error);
 			}
 		);
 	});
@@ -86,12 +110,25 @@ function tokens(tokens) {
 			if (config.scopes.length)
 				params.append('scope', config.scopes.join(' '));
 
-			if (config.openid.token_endpoint) {
-				params.append('response_type', 'code');
-				params.append('code_challenge_method', 'S256');
-				params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
-			} else
+			outer: switch (true) {
+			case config.openid.response_types_supported.includes('code'):
+				switch (true) {
+				case config.openid.code_challenge_methods_supported.includes('S256'):
+					params.append('response_type', 'code');
+					params.append('code_challenge_method', 'S256');
+					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
+					break outer;
+				case config.openid.code_challenge_methods_supported.includes('plain'):
+					params.append('response_type', 'code');
+					params.append('code_challenge_method', 'plain');
+					params.append('code_challenge', code_verifier);
+					break outer;
+				}
+				// FALLTHROUGH
+			case config.openid.response_types_supported.includes('token'):
 				params.append('response_type', 'token');
+				break outer;
+			}
 
 			postMessage({ type: 'authorize', id: id, data: {
 				uri: config.openid.authorization_endpoint + '?' + params.toString()
@@ -244,12 +281,14 @@ onmessage = function(e) {
 		dispatch(e.data);
 	};
 
-//	console.info(e.data);
+	console.info(e.data);
 
 	if (config)
 		config.then(cb)
 	else if (e.data.type == 'init')
 		cb()
-	else
+	else {
+		console.error('uninit');
 		throw new Error('uninit');
+	}
 }

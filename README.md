@@ -87,19 +87,20 @@ Where:
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
      * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
-         * use `discovery_document` as supports PKCE but does not advertise it
+         * use `discovery_overlay` as supports PKCE but does not advertise it
      * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com`
-         * use `discovery_document` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259)
- * **`discovery_document`:** contents of `/.well-known/openid-configuration`
+         * use `discovery_overlay` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259)
+ * **`discovery_overlay`:** object representation matching format of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
-     * override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
-         * AWS Cognito supports PKCE but does not advertise `code_challenge_methods_supported`
+     * keys found in here will overwrite keys from `discovery_endpoint`
+     * use this to override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
+         * AWS Cognito: `{ code_challenge_methods_supported: [ 'S256' ] }`
      * make sure to monitor for updates to the original document by your OAuth2 provider
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
      * this must be registered with your OAuth2 provider
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
-You must supply all of the above, except you may provide only either `discovery_endpoint` (recommended where possible) or `discovery_document`.
+You must supply all of the above, except `discovery_endpoint` is optional but requires `discovery_overlay` in its place (you can specify both and `discovery_overlay` will overwrite keys from `discovery_endpoint`).
 
 ### `authorize_callback`
 
