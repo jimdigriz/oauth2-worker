@@ -130,6 +130,12 @@ This creates a callback to be called whenever authentication is required, and wh
 
 **N.B.** your application must support handling this callback being called at anytime such as by opening a [modal](https://en.wikipedia.org/wiki/Modal_window)
 
+### Debugging
+
+Also supported as options are:
+
+ * **`expires_in` (seconds):** forcibly expire your access token early
+
 ## `.whoami()`
 
     oauth2.whoami().then(whoami => { console.log(whoami) });
