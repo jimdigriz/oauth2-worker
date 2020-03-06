@@ -17,10 +17,14 @@ class HTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json')
             self.send_header('Cache-Control', 'no-store')
             self.end_headers()
-            userinfo = self.headers.get('authorization').split('.')[1]
-            userinfo += '=' * (-len(userinfo) % 4)
-            userinfo = base64.urlsafe_b64decode(userinfo)
-            self.wfile.write(userinfo)
+            authorization = self.headers.get('authorization').split('.')
+            if len(authorization) == 3:
+                userinfo = authorization[1]
+                userinfo += '=' * (-len(userinfo) % 4)
+                userinfo = base64.urlsafe_b64decode(userinfo)
+                self.wfile.write(userinfo)
+            else:
+                self.wfile.write(b'{}')
         else:
             super().do_GET()
 
