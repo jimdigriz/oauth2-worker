@@ -281,7 +281,7 @@ onmessage = function(e) {
 		dispatch(e.data);
 	};
 
-	console.info(e.data);
+//	console.info(e.data);
 
 	if (config)
 		config.then(cb)
