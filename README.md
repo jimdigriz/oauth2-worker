@@ -1,14 +1,33 @@
 A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
 
-It is [generally considered unsafe to use `implicit` grant with SPA](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but in this project we use a Web Worker as a trusted key vault which keeps all your tokens locked away with zero risk of any third party JavaScript being able to access them.  This means we can now even retain the refresh token too to support long user sessions without regular interactive reauthentication.
+It is [considered unsafe to use implicit flow for SPAs](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but by using a Web Worker as a key vault all tokens can be kept locked away with zero risk of being leaking to third party JavaScript.  This means we can now [request and retain safely the refresh token](https://www.oauth.com/oauth2-servers/access-tokens/refreshing-access-tokens/) to allow for long lived sessions that do not require regular user action to reauthenticate.
 
-Interaction with the Web Worker is via a [Promise based interface](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) that tries mimic the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API); requests will have a suitable HTTP `Authorization` header added to them.
+From a developer perspective, requests to HTTP endpoints requiring [bearer tokens](https://www.oauth.com/oauth2-servers/access-tokens/) to access must be pushed through an interface that aims to follow the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and communicates with the Web Worker to make the request on your behalf which will in turn add the HTTP `Authorization` header for you.
+
+## Design Reasoning
+
+The aim of the project is:
+
+ * keep your tokens safe
+ * transparently handle the renewing of your tokens
+ * handle requests on your behalf by adding an `Authorization` header
+     * later [signing](https://gitlab.com/jimdigriz/oauth2-worker/issues/3)
+
+The choice to use a Web Worker came about as:
+
+ * provides a non-technical end user a familar and bullet proof way to control logging out (close tab or reload page)
+     * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) ([which others have considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff)) makes hard for the end user to control
+ * every tab is its own session
+     * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult
+ * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as it would come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
+
+A big advantage of a service worker is that it can be used for the entire lifetime of the refresh token so even after a long period of time the user could remain logged in without having to use cookies.  Fortunately most OAuth2 providers make reauthenticating straight forward, fast and often either no more than a single click affair or backed by their own cookies and immediate so the inconvience is considerably reduced.
 
 ## Demo
 
-**N.B.** currently not working, need to hunt for a public OAuth2 provider that supports PKCE
+You will need Python 3 installed and a [`gitlab.com`](https://about.gitlab.com/) account.  If you want to demo against your own OAuth2 provider then do edit [`index.html`](webroot/index.html) per the usage instructions below and 
 
-You will need Python 3 installed, but you should be able to just run:
+Now run:
 
     ./demo.py
 
@@ -22,11 +41,11 @@ Now open http://localhost:5000 in your browser, open developer tools and show th
 
 You will need:
 
- * OAuth2 endpoint:
+ * OAuth2 provider:
      * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
          * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
      * supports [PKCE (strongly recommended)](https://oauth.net/2/pkce/)
-         * [`implicit`](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
+         * [implicit flow](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
  * `client_id` to use with your application
 
 # Usage
@@ -52,15 +71,14 @@ We start by initialising a fresh OAuth2 instance:
 
 Where:
 
- * **`client_id`:** is the identifier supplied by your OAuth2 platform for your client application
- * **`redirect_uri`:** the redirect URL to bounce the the authentication through (this is required, but there should be no need to change it)
+ * **`client_id`:** your application id (assigned by your OAuth2 provider)
+ * **`client_secret [optional]`:** your application secret
+     * avoid creating when registering your application in your provider if possible
+     * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published
+ * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * Google for example uses [https://accounts.google.com](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
-     * if your platform does not support discovery then you must supply:
-         * **`authorization_endpoint` [required]**: this is where the user logins in using their credentials
-         * **`token_endpoint` [recommended]:** without this `PKCE` (`code` flow) is not supported and the more risky `implicit` flow has to be used
-         * **`userinfo_endpoint` [optional]:** endpoint that can provide details about the user bearing the token
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
 ### `authorize_callback`
@@ -87,7 +105,7 @@ Assuming you have a button on your page (with the ID `button`) you can use somet
       };
     };
 
-We provide a callback that is called when authentication is required, and when called passes the resolvable parts to promise.  The UI at this point should be set up to indicate to the user that an authentication is required and a interaction (such as a button/form click) to be made.  On the interaction, we resolve the promise we were passed which kicks off the authentication, and in doing so we pass in a promise of our own to get feedback on the outcome of the authentication.
+We provide a callback that is called when authentication is required, and when called is passed the resolvable parts to promise.  The UI at this point should indicate to the user that an authentication is required and provide an interaction (such as a button/form 'Login' click) to be made.  On the interaction, we resolve the promise we were passed which begins the authentication in a new tab whilst passing in a promise of our own to get feedback on the outcome.
 
 ## `.whoami()`
 

@@ -46,10 +46,12 @@
     };
 
     const oauth2 = new OAuth2({
-      client_id: '...',
+      client_id: '3ea93227a55ed2db80cfbd51db973eed63fe3158167524bf64520985043b3fed',
+      client_secret: '0cf9acef62f593859797cc3e31a2392f88ce7ab8bdf760f0173f6d11d5c05fbc',
       redirect_uri: '/oauth2-redirect.html',
-      discovery_endpoint: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...',
-      authorize_callback: authorize
+      discovery_endpoint: 'https://gitlab.com',
+      authorize_callback: authorize,
+      scopes: [ 'openid', 'email', 'profile' ]
     });
 
     oauth2.whoami().then(whoami => {

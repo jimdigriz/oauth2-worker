@@ -1,9 +1,9 @@
 class OAuth2 {
 	constructor(config) {
-		if (typeof config != 'object') throw new Error('missing configuration');
-		if (!('client_id' in config)) throw new Error("missing 'client_id'");
-		if (!('redirect_uri' in config)) throw new Error("missing 'redirect_uri'");
-		if (!('discovery_endpoint' in config || 'authorization_endpoint' in config)) throw new Error("need either '{discovery,authorization}_endpoint'");
+		if (typeof config != 'object') throw new Error('missing configuration object');
+		if (typeof config.client_id != 'string') throw new Error("missing 'client_id' string");
+		if (typeof config.redirect_uri != 'string') throw new Error("missing 'redirect_uri' string");
+		if (typeof config.discovery_endpoint != 'string') throw new Error("missing 'discovery_endpoint' string");
 		if (typeof config.authorize_callback != 'function') throw new Error("missing 'callback' function");
 
 		this.pending = {};
