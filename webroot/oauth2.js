@@ -1,74 +1,35 @@
-class OAuth2 {
-	constructor(config) {
-		if (typeof config != 'object') throw new Error('missing configuration object');
-		if (typeof config.client_id != 'string') throw new Error("missing 'client_id' string");
-		if (typeof config.redirect_uri != 'string') throw new Error("missing 'redirect_uri' string");
-		if (typeof config.discovery_endpoint != 'string') throw new Error("missing 'discovery_endpoint' string");
-		if (typeof config.authorize_callback != 'function') throw new Error("missing 'callback' function");
+const OAuth2 = (function() {
+	const self = {};
 
-		this.pending = {};
+	const pending = {};
+	let worker = null;
+	let authorize_callback = null;
 
-		this.callback = config.authorize_callback;
-		delete config.authorize_callback;
-
-		this.whoami = this._whoami.bind(this);
-		this.fetch = this._fetch.bind(this);
-
-		this.worker = new Worker('oauth2-worker.js');
-
-		this.worker.onmessage = this.__recv.bind(this);
-
-		this.worker.postMessage({ type: 'init', data: config });
-	}
-
-	_whoami() {
-		return this.__send({ type: 'whoami' });
-	}
-
-	_fetch(uri, options) {
-		options = options || {}
-		if (options.headers) {
-			Object.keys(options.headers).forEach((k) => {
-				const v = options.headers[k];
-				delete options.headers[k];
-				options.headers[k.toLowerCase()] = v;
-			});
-		}
-		if (options.body && !(options.headers && options.headers['content-type'])) {
-			options.headers = options.headers || {};
-			if (options.body instanceof URLSearchParams) {
-				options.headers['content-type'] = 'application/x-www-form-urlencoded; charset=utf-8';
-				options.body = options.body.toString();
-			}
-		}
-		return this.__send({ type: 'fetch', data: { uri: uri, options: options } });
-	}
-
-	__authorize(data) {
+	function authorize(data) {
 		new Promise((resolve, reject) => {
-			this.callback({ resolve: resolve, reject: reject });
+			authorize_callback({ resolve: resolve, reject: reject });
 		}).then((promise) => {
 			return new Promise((resolve, reject) => {
-				this.pending[data.id] = { resolve: resolve, reject: reject };
+				pending[data.id] = { resolve: resolve, reject: reject };
 
 				const source = window.open(data.data.uri, '_blank');
 
-				const cb = (e) => {
-					if (e.source != source) return;
+				const cb = (event) => {
+					if (event.source != source) return;
 
 //					console.info(e);
 
-					if (typeof e.data != 'object')
-						return console.warn('orphan', e.data);
+					if (typeof event.data != 'object')
+						return console.warn('orphan', event.data);
 
-					if (e.data.id == data.id)
-						this.worker.postMessage(e.data)
-					else if (e.data.id == null) {
-						console.warn('failed', e.data.data);
-						reject(e.data.data);
+					if (event.data.id == data.id)
+						worker.postMessage(event.data)
+					else if (event.data.id == null) {
+						console.warn('failed', event.data.data);
+						reject(event.data.data);
 					} else {
-						console.error('mismatch', e.data);
-						reject(e.data);
+						console.error('mismatch', event.data);
+						reject(event.data);
 					}
 
 					source.close();
@@ -85,7 +46,7 @@ class OAuth2 {
 		});
 	}
 
-	__send(data) {
+	function send(data) {
 		// https://stackoverflow.com/a/2117523
 		function uuidv4() {
 			return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
@@ -96,28 +57,68 @@ class OAuth2 {
 		return new Promise((resolve, reject) => {
 			data.id = uuidv4();
 
-			this.pending[data.id] = { resolve: resolve, reject: reject };
+			pending[data.id] = { resolve: resolve, reject: reject };
 
-			this.worker.postMessage(data);
+			worker.postMessage(data);
 		});
 	}
 
-	__recv(e) {
-//		console.info(e.data);
+	function recv(event) {
+//		console.info(event.data);
 
-		switch (e.data.type) {
+		switch (event.data.type) {
 		case 'authorize':
-			this.__authorize(e.data);
+			authorize(event.data);
 			break;
 		default:
-			if (!(e.data.id in this.pending))
-				return console.warn('orphan', e.data);
-			const promise = this.pending[e.data.id];
-			delete this.pending[e.data.id];
-			if (e.data.ok)
-				promise.resolve(e.data.data)
+			if (!(event.data.id in pending))
+				return console.warn('orphan', event.data);
+			const promise = pending[event.data.id];
+			delete pending[event.data.id];
+			if (event.data.ok)
+				promisevent.resolve(event.data.data)
 			else
-				promise.reject(e.data.data);
+				promisevent.reject(event.data.data);
 		}
 	}
-}
+
+	function OAuth2(config) {
+		if (typeof config != 'object') throw new Error('missing configuration object');
+		if (typeof config.client_id != 'string') throw new Error("missing 'client_id' string");
+		if (typeof config.redirect_uri != 'string') throw new Error("missing 'redirect_uri' string");
+		if (typeof config.discovery_endpoint != 'string') throw new Error("missing 'discovery_endpoint' string");
+		if (typeof config.authorize_callback != 'function') throw new Error("missing 'authorize_callback' function");
+
+		authorize_callback = config.authorize_callback;
+		delete config.authorize_callback;
+
+		worker = new Worker('oauth2-worker.js');
+		worker.onmessage = recv;
+		worker.postMessage({ type: 'init', data: config });
+	}
+
+	OAuth2.prototype.whoami = function() {
+		return send({ type: 'whoami' });
+	};
+
+	OAuth2.prototype.fetch = function(uri, options) {
+		options = options || {}
+		if (options.headers) {
+			Object.keys(options.headers).forEach((k) => {
+				const v = options.headers[k];
+				delete options.headers[k];
+				options.headers[k.toLowerCase()] = v;
+			});
+		}
+		if (options.body && !(options.headers && options.headers['content-type'])) {
+			options.headers = options.headers || {};
+			if (options.body instanceof URLSearchParams) {
+				options.headers['content-type'] = 'application/x-www-form-urlencoded; charset=utf-8';
+				options.body = options.body.toString();
+			}
+		}
+		return send({ type: 'fetch', data: { uri: uri, options: options } });
+	};
+
+	return OAuth2;
+}).call(this);
