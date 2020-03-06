@@ -146,6 +146,8 @@ Returns the JSON parsed version of either:
 
 If nothing is available, then `null` is returned.
 
+**N.B.** you may force returning UserInfo by calling `oauth2.whoami('userinfo').then(...)`
+
 ## `.fetch()`
 
 You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for a overview of this.
