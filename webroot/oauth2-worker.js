@@ -38,6 +38,8 @@ function init(data) {
 				return reject(new Error("'authorization_code' grant not supported"));
 
 			outer: switch (true) {
+			case discovery.response_types_supported.includes('token'):
+				break outer;
 			case discovery.response_types_supported.includes('code'):
 				switch (true) {
 				case (discovery.code_challenge_methods_supported || []).includes('S256'):
@@ -45,10 +47,18 @@ function init(data) {
 					break outer;
 				}
 				// FALLTHROUGH
-			case discovery.response_types_supported.includes('token'):
-				break outer;
 			default:
-				return reject(new Error("neither 'code' or 'token' response type supported"));
+				return reject(new Error("neither PKCE or 'token' response type supported"));
+			}
+
+			if (data.data.client_secret) {
+				switch (true) {
+				case (discovery.token_endpoint_auth_methods_supported || []).includes('client_secret_post'):
+				case (discovery.token_endpoint_auth_methods_supported || []).includes('client_secret_basic'):
+					break;
+				default:
+					return reject(new Error("use of client_secret requires token_endpoint_auth_methods_supported"));
+				}
 			}
 
 			if (data.data.scopes && discovery.scopes_supported) {
@@ -79,10 +89,23 @@ function tokens(toks) {
 
 	_tokens = config.then(config => { return new Promise((resolve, reject) => {
 		function request(params) {
+			const headers = {};
 			params.append('client_id', config.client_id);
+			if (config.client_secret) {
+				switch (true) {
+				case (config.openid.token_endpoint_auth_methods_supported || []).includes('client_secret_basic'):
+					headers['authorization'] = 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':'));
+					break;
+				case (config.openid.token_endpoint_auth_methods_supported || []).includes('client_secret_post'):
+					params.append('client_secret', config.client_secret);
+					break;
+
+				}
+			}
 
 			return fetch(config.openid.token_endpoint, {
 				method: 'POST',
+				headers: headers,
 				body: params
 			}).then(response => {
 				if (toks && response.status == 401)
@@ -149,7 +172,7 @@ function tokens(toks) {
 
 		const params = new URLSearchParams();
 
-		switch (true) {
+		outer: switch (true) {
 		case !!(toks || {}).refresh_token:
 			params.append('grant_type', 'refresh_token');
 			params.append('refresh_token', toks.refresh_token);
@@ -177,7 +200,7 @@ function tokens(toks) {
 					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
 					authorize(params, code_verifier);
 				};
-				break;
+				break outer;
 			case (config.openid.code_challenge_methods_supported || []).includes('plain'):
 				params.append('code_challenge_method', 'plain');
 				params.append('code_challenge', code_verifier);
@@ -185,19 +208,16 @@ function tokens(toks) {
 					const [ ] = args;
 					authorize(params, code_verifier);
 				}
-				break;
-			default:
-				console.error('NYI');
-				return reject(new Error('NYI'));
+				break outer;
 			}
-			break;
+			// FALLTHROUGH
 		case config.openid.response_types_supported.includes('token'):
 			params.append('response_type', 'token');
 			cb = function(args) {
 				const [ ] = args;
 				authorize(params);
 			}
-			break;
+			break outer;
 		}
 
 		return Promise.all(args).then(cb);

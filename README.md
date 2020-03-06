@@ -81,15 +81,14 @@ We start by initialising a fresh OAuth2 instance:
 Where:
 
  * **`client_id`:** your application id (assigned by your OAuth2 provider)
-     * avoid creating a `client_secret` when registering your application in your provider if possible
-         * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab does not](https://docs.gitlab.com/ee/api/oauth2.html)
+ * **`client_secret` [optional and not recommended]:** your application secret
+     * try to avoid creating this when registering your application in your provider if possible
+         * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab](https://docs.gitlab.com/ee/api/oauth2.html) and [Google]() do not
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
-     * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
      * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
          * use `discovery_overlay` as supports PKCE but does not advertise it
-     * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com`
-         * use `discovery_overlay` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259)
+     * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
  * **`discovery_overlay`:** object representation matching format of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
      * keys found in here will overwrite keys from `discovery_endpoint`
