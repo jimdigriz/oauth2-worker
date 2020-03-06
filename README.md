@@ -83,7 +83,7 @@ Where:
  * **`client_id`:** your application id (assigned by your OAuth2 provider)
  * **`client_secret` [optional and not recommended]:** your application secret
      * try to avoid creating this when registering your application in your provider if possible
-         * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab](https://docs.gitlab.com/ee/api/oauth2.html) and [Google]() do not
+         * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab](https://docs.gitlab.com/ee/api/oauth2.html) and Google do not
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
