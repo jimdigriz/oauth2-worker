@@ -103,20 +103,12 @@ const OAuth2 = (function() {
 	OAuth2.prototype.fetch = function(uri, options) {
 		options = options || {}
 		if (options.headers) {
-			Object.keys(options.headers).forEach((k) => {
-				const v = options.headers[k];
-				delete options.headers[k];
-				options.headers[k.toLowerCase()] = v;
-			});
+			options.headers = Object.keys(options.headers).reduce((a, k) => {
+				a[k.toLowerCase()] = options.headers[k];
+				return a;
+			}, {});
 			if ('authorization' in headers)
 				throw new Error("contains 'authorization' header");
-		}
-		if (options.body && !(options.headers && options.headers['content-type'])) {
-			options.headers = options.headers || {};
-			if (options.body instanceof URLSearchParams) {
-				options.headers['content-type'] = 'application/x-www-form-urlencoded; charset=utf-8';
-				options.body = options.body.toString();
-			}
 		}
 		return send({ type: 'fetch', data: { uri: uri, options: options } });
 	};

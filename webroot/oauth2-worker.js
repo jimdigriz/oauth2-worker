@@ -1,18 +1,3 @@
-function a2qs(a) {
-	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent
-	function fixedEncodeURIComponent(str) {
-		return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
-			return '%' + c.charCodeAt(0).toString(16);
-		});
-	}
-
-	let qs = [];
-	for (let i = 0; i < a.length; i++)
-		if (a[i][1] !== undefined && a[i][1] !== null && a[i][1] !== false)
-			qs.push(fixedEncodeURIComponent(a[i][0]) + (a[i][1] !== true ? ('=' + fixedEncodeURIComponent(a[i][1])) : ''));
-	return qs.join('&');
-}
-
 // https://stackoverflow.com/a/2117523
 function uuidv4() {
 	return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
@@ -42,6 +27,12 @@ function init(data) {
 	data.data.scopes = data.data.scopes || [];
 
 	config = new Promise((resolve, reject) => {
+		if (data.data.discovery_document) {
+			data.data.openid = JSON.parse(data.data.discovery_document);
+			resolve(data.data);
+			return
+                }
+
 		fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
 			response => {
 				if (!response.ok) throw new Error(response.statusText);
@@ -86,26 +77,24 @@ function tokens(tokens) {
 		args => {
 			const [config, code_challenge] = args;
 
-			const a = [
-				[ 'client_id',		config.client_id ],
-				[ 'redirect_uri',	location.origin + config.redirect_uri ],
-				[ 'state',		id ],
-				[ 'scope',		config.scopes.length ? config.scopes.join(' ') : undefined ]
-			];
+			const params = new URLSearchParams();
+
+			params.append('client_id', config.client_id);
+			params.append('redirect_uri', location.origin + config.redirect_uri),
+			params.append('state', id);
+
+			if (config.scopes.length)
+				params.append('scope', config.scopes.join(' '));
+
 			if (config.openid.token_endpoint) {
-				a.push(
-					[ 'response_type',		'code' ],
-					[ 'code_challenge_method',	'S256' ],
-					[ 'code_challenge',		base64url_encode(ab2bstr(code_challenge)) ]
-				);
-			} else {
-				a.push(
-					[ 'response_type',		'token' ],
-				);
-			}
+				params.append('response_type', 'code');
+				params.append('code_challenge_method', 'S256');
+				params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
+			} else
+				params.append('response_type', 'token');
 
 			postMessage({ type: 'authorize', id: id, data: {
-				uri: config.openid.authorization_endpoint + '?' + a2qs(a)
+				uri: config.openid.authorization_endpoint + '?' + params.toString()
 			}});
 	});
 
@@ -119,23 +108,21 @@ function tokens(tokens) {
 				return;
 			}
 
-			const params = [
-				[ 'client_id', config.client_id ]
-			];
+			const params = new URLSearchParams();
+
+			params.append('client_id', config.client_id);
+
 			if (config.client_secret && config.openid.token_endpoint_auth_methods_supported.includes('client_secret_post'))
-				params.push(['client_secret', config.client_secret]);
+				params.append('client_secret', config.client_secret);
+
 //			if (redirect.data.code) {
-				params.push(
-					[ 'grant_type',		'authorization_code' ],
-					[ 'redirect_uri',	location.origin + config.redirect_uri ],
-					[ 'code',		redirect.data.code ],
-					[ 'code_verifier',	code_verifier ]
-				);
+				params.append('grant_type', 'authorization_code');
+				params.append('redirect_uri', location.origin + config.redirect_uri);
+				params.append('code', redirect.data.code);
+				params.append('code_verifier', code_verifier);
 //			} else if (tokens.refresh) {
-//				params.push(
-//					[ 'grant_type',		'refresh_token' ],
-//					[ 'refresh_token',	tokens.refresh ]
-//				);
+//				params.append('grant_type', 'refresh_token');
+//				params.append('refresh_token', tokens.refresh);
 //			}
 
 			const headers = {
@@ -146,7 +133,7 @@ function tokens(tokens) {
 			fetch(config.openid.token_endpoint, {
 				method: 'POST',
 				headers: headers,
-				body: a2qs(params)
+				body: params.toString()
 			}).then(
 				response => {
 					if (!response.ok) throw new Error(response.statusText);
