@@ -63,7 +63,7 @@ function init(data) {
 		if (!data.data.discovery_endpoint)
 			return validate({});
 
-		fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
+		return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
 			response => {
 				if (!response.ok) throw new Error(response.statusText);
 				return response.json();
@@ -83,129 +83,150 @@ function init(data) {
 }
 
 let _tokens = null;
-function tokens(tokens) {
-	if (_tokens instanceof Promise)
-		return _tokens;
-
-	const id = uuidv4();
-	// https://tools.ietf.org/html/rfc7636#section-4.1
-	const code_verifier = base64url_encode(ab2bstr(crypto.getRandomValues(new Uint8Array(32))));
-
-	const redirect = new Promise((resolve, reject) => {
-		pending[id] = { resolve: resolve, reject: reject };
-	});
-	const digest = crypto.subtle.digest(
-		{
-			name: 'SHA-256'
-		},
-		(new TextEncoder()).encode(code_verifier)
-	);
-	Promise.all([config, digest]).then(
-		args => {
-			const [config, code_challenge] = args;
-
-			const params = new URLSearchParams();
-
-			params.append('client_id', config.client_id);
-			params.append('redirect_uri', location.origin + config.redirect_uri),
-			params.append('state', id);
-
-			if (config.scopes)
-				params.append('scope', config.scopes.join(' '));
-
-			outer: switch (true) {
-			case config.openid.response_types_supported.includes('code'):
-				switch (true) {
-				case (config.openid.code_challenge_methods_supported || []).includes('S256'):
-					params.append('response_type', 'code');
-					params.append('code_challenge_method', 'S256');
-					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
-					break outer;
-				case (config.openid.code_challenge_methods_supported || []).includes('plain'):
-					params.append('response_type', 'code');
-					params.append('code_challenge_method', 'plain');
-					params.append('code_challenge', code_verifier);
-					break outer;
-				}
-				// FALLTHROUGH
-			case config.openid.response_types_supported.includes('token'):
-				params.append('response_type', 'token');
-				break outer;
-			}
-
-			postMessage({ type: 'authorize', id: id, data: {
-				uri: config.openid.authorization_endpoint + '?' + params.toString()
-			}});
-	});
-
-	_tokens = new Promise((resolve, reject) => {
-		Promise.all([config, redirect]).then(args => {
-			const [ config, redirect ] = args;
-
-			if (redirect.data.access_token) {
-				redirect.data._ts = performance.now();
-				resolve(redirect.data);
-				postMessage({ id: redirect.id, ok: true });
-				return;
-			}
-
-			const params = new URLSearchParams();
-
+function tokens(toks) {
+	_tokens = _tokens || config.then(config => { return new Promise((resolve, reject) => {
+		function request(params) {
 			params.append('client_id', config.client_id);
 
-//			if (redirect.data.code) {
-				params.append('grant_type', 'authorization_code');
-				params.append('redirect_uri', location.origin + config.redirect_uri);
-				params.append('code', redirect.data.code);
-				params.append('code_verifier', code_verifier);
-//			} else if (tokens.refresh_token) {
-//				params.append('grant_type', 'refresh_token');
-//				params.append('refresh_token', tokens.refresh_token);
-//			}
-
-			const headers = {
-				'content-type': 'application/x-www-form-urlencoded'
-			};
-			fetch(config.openid.token_endpoint, {
+			return fetch(config.openid.token_endpoint, {
 				method: 'POST',
-				headers: headers,
-				body: params.toString()
+				body: params
 			}).then(
 				response => {
-					if (!response.ok) throw new Error(response.statusText);
+					if (toks && response.status == 401)
+						return tokens({});
+					if (!response.ok) throw new error(response.statustext);
 					return response.json();
 				}
-			).then(
-				json => {
-					json._ts = performance.now();
-					resolve(json);
-					postMessage({ id: redirect.id, ok: true });
-				}
-			).catch(
-				error => {
-					console.error('redirect', error.message);
-					reject(null);
-					postMessage({ id: redirect.id, ok: false, data: { error: error.message } });
+			);
+		}
+
+		function authorize(params0, code_verifier) {
+			const id = uuidv4();
+
+			params0.append('redirect_uri', location.origin + config.redirect_uri),
+			params0.append('state', id);
+
+			if (config.scopes)
+				params0.append('scope', config.scopes.join(' '));
+
+			const redirect = new Promise((resolve, reject) => {
+				pending[id] = { resolve: resolve, reject: reject };
+			}).then(
+				redirect => {
+					if (redirect.data.access_token) {
+						redirect.data._ts = performance.now();
+						resolve(redirect.data);
+						postMessage({ id: id, ok: true });
+						return;
+					}
+
+					const params = new URLSearchParams();
+
+					params.append('grant_type', 'authorization_code');
+					params.append('redirect_uri', location.origin + config.redirect_uri);
+					params.append('code', redirect.data.code);
+					if (params0.has('code_challenge'))
+						params.append('code_verifier', code_verifier);
+
+					return request(params).then(
+						json => {
+							json._ts = performance.now();
+							resolve(json);
+							postMessage({ id: id, ok: true });
+						}
+					).catch(
+						error => {
+							console.error('redirect', error.message);
+							reject(null);
+							postMessage({ id: id, ok: false, data: { error: error.message } });
+						}
+					);
+
 				}
 			);
-		});
-	});
+
+			postMessage({ type: 'authorize', id: id, data: {
+				uri: config.openid.authorization_endpoint + '?' + params0.toString()
+			}});
+
+			return redirect;
+		}
+
+		const args = [];
+		let cb = null;
+
+		const params = new URLSearchParams();
+
+		params.append('client_id', config.client_id);
+
+		switch (true) {
+		case !!(toks || {}).refresh_token:
+			params.append('grant_type', 'refresh_token');
+			params.append('refresh_token', toks.refresh_token);
+			cb = function(args) {
+				const [ ] = args;
+				request(params);
+			}
+			break;
+		case config.openid.response_types_supported.includes('code'):
+			const code_verifier = base64url_encode(ab2bstr(crypto.getRandomValues(new Uint8Array(32))));
+
+			params.append('response_type', 'code');
+
+			switch (true) {
+			case (config.openid.code_challenge_methods_supported || []).includes('S256'):
+				params.append('code_challenge_method', 'S256');
+				args.push(crypto.subtle.digest(
+					{
+						name: 'SHA-256'
+					},
+					(new TextEncoder()).encode(code_verifier)
+				));
+				cb = function(args) {
+					const [ code_challenge ] = args;
+					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
+					authorize(params, code_verifier);
+				};
+				break;
+			case (config.openid.code_challenge_methods_supported || []).includes('plain'):
+				params.append('code_challenge_method', 'plain');
+				params.append('code_challenge', code_verifier);
+				cb = function(args) {
+					const [ ] = args;
+					authorize(params, code_verifier);
+				}
+				break;
+			default:
+				console.error('NYI');
+				throw new Error('NYI');
+			}
+			break;
+		case config.openid.response_types_supported.includes('token'):
+			params.append('response_type', 'token');
+			cb = function(args) {
+				const [ ] = args;
+				authorize(params);
+			}
+			break;
+		}
+
+		return Promise.all(args).then(cb);
+	})});
 
 	return _tokens;
 }
 
-function _do_fetch(data) {
-	return tokens().then(tokens => {
+function _do_fetch(data, toks) {
+	return tokens(toks).then(toks => {
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || {};
-		data.data.options.headers['authorization'] = [ tokens.token_type, tokens.access_token ].join(' ');
+		data.data.options.headers['authorization'] = [ toks.token_type, toks.access_token ].join(' ');
 
 		return fetch(data.data.uri, data.data.options).then(
 			response => {
-				if (response.status == 401) {
-					_tokens = null;
-					return do_fetch(data);
-				}
+				if (response.status == 401)
+					return do_fetch(data, toks);
 				return response;
 			},
 			error => {
@@ -260,7 +281,7 @@ function do_fetch(data) {
 }
 
 onmessage = function(e) {
-	const cb = function(){
+	function cb(){
 		let dispatch = null;
 
 		switch (e.data.type) {
