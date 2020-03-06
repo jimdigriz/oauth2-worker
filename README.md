@@ -9,7 +9,7 @@ From a developer perspective, requests to HTTP endpoints requiring [bearer token
 The aim of the project is:
 
  * keep your tokens safe
- * easy to use (both for the developer and end user)
+ * easy to use both for the developer and end user
  * transparently handle the renewing of your tokens
  * handle requests on your behalf by adding an `Authorization` header
      * later [signing](https://gitlab.com/jimdigriz/oauth2-worker/issues/3)
@@ -81,7 +81,6 @@ We start by initialising a fresh OAuth2 instance:
 Where:
 
  * **`client_id`:** your application id (assigned by your OAuth2 provider)
- * **`client_secret [optional]`:** your application secret
      * avoid creating when registering your application in your provider if possible
          * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab does not](https://docs.gitlab.com/ee/api/oauth2.html)
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
