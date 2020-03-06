@@ -24,8 +24,6 @@ const pending = {};
 
 let config = null;
 function init(data) {
-	data.data.scopes = data.data.scopes || [];
-
 	config = new Promise((resolve, reject) => {
 		function validate(discovery) {
 			discovery = Object.keys(data.data.discovery_overlay || {}).reduce((a, k) => {
@@ -33,14 +31,17 @@ function init(data) {
 				return a;
 			}, discovery);
 
-			discovery.response_types_supported = discovery.response_types_supported || [];
-			discovery.code_challenge_methods_supported = discovery.code_challenge_methods_supported || [];
+			// https://tools.ietf.org/html/rfc8414
+			discovery.grant_types_supported = discovery.grant_types_supported || [ 'authorization_code', 'implicit' ];
+
+			if (!discovery.grant_types_supported.includes('authorization_code'))
+				throw new Error("'authorization_code' grant not supported");
 
 			outer: switch (true) {
 			case discovery.response_types_supported.includes('code'):
 				switch (true) {
-				case discovery.code_challenge_methods_supported.includes('S256'):
-				case discovery.code_challenge_methods_supported.includes('plain'):
+				case (discovery.code_challenge_methods_supported || []).includes('S256'):
+				case (discovery.code_challenge_methods_supported || []).includes('plain'):
 					break outer;
 				}
 				// FALLTHROUGH
@@ -50,12 +51,14 @@ function init(data) {
 				throw new Error("neither 'code' or 'token' response type supported");
 			}
 
-			const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
-			if (overlap.length < data.data.scopes.length) throw new Error('scopes not available');
+			if (data.data.scopes && discovery.scopes_supported) {
+				const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
+				if (overlap.length < data.data.scopes.length) throw new Error('not all requested scopes are available');
+			}
 
 			data.data.openid = discovery;
 			resolve(data.data);
-		};
+		}
 
 		if (!data.data.discovery_endpoint)
 			return validate({});
@@ -107,18 +110,18 @@ function tokens(tokens) {
 			params.append('redirect_uri', location.origin + config.redirect_uri),
 			params.append('state', id);
 
-			if (config.scopes.length)
+			if (config.scopes)
 				params.append('scope', config.scopes.join(' '));
 
 			outer: switch (true) {
 			case config.openid.response_types_supported.includes('code'):
 				switch (true) {
-				case config.openid.code_challenge_methods_supported.includes('S256'):
+				case (config.openid.code_challenge_methods_supported || []).includes('S256'):
 					params.append('response_type', 'code');
 					params.append('code_challenge_method', 'S256');
 					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
 					break outer;
-				case config.openid.code_challenge_methods_supported.includes('plain'):
+				case (config.openid.code_challenge_methods_supported || []).includes('plain'):
 					params.append('response_type', 'code');
 					params.append('code_challenge_method', 'plain');
 					params.append('code_challenge', code_verifier);
