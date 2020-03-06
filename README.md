@@ -81,7 +81,7 @@ We start by initialising a fresh OAuth2 instance:
 Where:
 
  * **`client_id`:** your application id (assigned by your OAuth2 provider)
-     * avoid creating when registering your application in your provider if possible
+     * avoid creating a `client_secret` when registering your application in your provider if possible
          * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab does not](https://docs.gitlab.com/ee/api/oauth2.html)
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
