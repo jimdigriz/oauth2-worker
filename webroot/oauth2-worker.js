@@ -84,6 +84,8 @@ function init(data) {
 
 let _tokens = null;
 function tokens(toks) {
+	if (toks && _tokens) _tokens = null;
+
 	_tokens = _tokens || config.then(config => { return new Promise((resolve, reject) => {
 		function request(params) {
 			params.append('client_id', config.client_id);
