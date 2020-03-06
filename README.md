@@ -1,6 +1,6 @@
 A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
 
-It is [considered unsafe to use implicit flow for SPAs](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but by using a Web Worker as a key vault all tokens can be kept locked away with zero risk of being leaking to third party JavaScript.  This means we can now [request and retain safely the refresh token](https://www.oauth.com/oauth2-servers/access-tokens/refreshing-access-tokens/) to allow for long lived sessions that do not require regular user action to reauthenticate.
+It is [considered unsafe to use implicit flow for SPAs](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but by using a Web Worker as a key vault all tokens can be kept locked away with zero risk of being leaking to third party JavaScript.  This means we can now [request and retain safely the refresh token](https://www.oauth.com/oauth2-servers/access-tokens/refreshing-access-tokens/) to allow for long lived sessions that do not require regular user action to re-authenticate.
 
 From a developer perspective, requests to HTTP endpoints requiring [bearer tokens](https://www.oauth.com/oauth2-servers/access-tokens/) to access must be pushed through an interface that aims to follow the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and communicates with the Web Worker to make the request on your behalf which will in turn add the HTTP `Authorization` header for you.
 
@@ -15,13 +15,20 @@ The aim of the project is:
 
 The choice to use a Web Worker came about as:
 
- * provides a non-technical end user a familar and bullet proof way to control logging out (close tab or reload page)
+ * provides a non-technical end user a familiar and bullet proof way to control logging out (close tab or reload page)
      * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) ([which others have considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff)) makes hard for the end user to control
  * every tab is its own session
      * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult
  * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as it would come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
+     * interface with the Web Worker is only directly available from within (private to) the `OAuth2` class
+ * straight forward for the developer to securely use
+     * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
+     * if you expose the class, third party JavaScript will be able to make HTTP requests with your access token
+         * they could use an HTTP endpoint under their control to send arbitrary requests to obtain your access token
+             * mitigations for this are covered in "Serving HTTP Headers for your Application"
+         * fortunately they still will have no access to your refresh token
 
-A big advantage of a service worker is that it can be used for the entire lifetime of the refresh token so even after a long period of time the user could remain logged in without having to use cookies.  Fortunately most OAuth2 providers make reauthenticating straight forward, fast and often either no more than a single click affair or backed by their own cookies and immediate so the inconvience is considerably reduced.
+One advantage of a service worker is that it can be used for the entire lifetime of the refresh token and the user effectively remains logged in even after the tab is closed, reloaded or navigated to elsewhere.  Fortunately most OAuth2 providers make re-authenticating straight forward, fast and often either involving no more than a single click or backed by their own cookies and immediate so the inconvenience experienced is considerably reduced.
 
 ## Demo
 
@@ -137,11 +144,13 @@ On error, response is:
 
     { ok: false, error: "..." }
 
-## HTTP Headers
+**N.B.** keys of the `headers` in both the request and response objects are lowercased (value is not changed)
 
-Related but not needed for this project, you should set a suitable [Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) (as well as some other helpful headers) when serving your main application to help you make sure only requests you know about can be made.
+## Serving HTTP Headers for your Application
 
-A good starting point (and one that supports [AWS Cognito](https://aws.amazon.com/cognito/)) is:
+Related and strongly recommended, but not needed for this project, you should set a suitable [Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) (as well as some other helpful headers) when serving your main application to help you make sure only requests you have whitelisted can be made.
+
+A starting example that supports [AWS Cognito](https://aws.amazon.com/cognito/) is:
 
     Content-Security-Policy: default-src 'self' *.amazonaws.com *.amazoncognito.com; frame-ancestors 'none'; report-uri /_/csp-reports
     X-Frame-Options: deny
