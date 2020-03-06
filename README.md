@@ -88,8 +88,10 @@ Where:
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
-     * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]` (use `discovery_document` as supports PKCE but does not advertise it)
-     * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com` (use `discovery_document` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259))
+     * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
+         * use `discovery_document` as supports PKCE but does not advertise it
+     * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com`
+         * use `discovery_document` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259)
  * **`discovery_document`:** contents of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
      * override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
