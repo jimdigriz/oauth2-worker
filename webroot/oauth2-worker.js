@@ -35,7 +35,7 @@ function init(data) {
 			discovery.grant_types_supported = discovery.grant_types_supported || [ 'authorization_code', 'implicit' ];
 
 			if (!discovery.grant_types_supported.includes('authorization_code'))
-				throw new Error("'authorization_code' grant not supported");
+				return reject(new Error("'authorization_code' grant not supported"));
 
 			outer: switch (true) {
 			case discovery.response_types_supported.includes('code'):
@@ -48,12 +48,12 @@ function init(data) {
 			case discovery.response_types_supported.includes('token'):
 				break outer;
 			default:
-				throw new Error("neither 'code' or 'token' response type supported");
+				return reject(new Error("neither 'code' or 'token' response type supported"));
 			}
 
 			if (data.data.scopes && discovery.scopes_supported) {
 				const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
-				if (overlap.length < data.data.scopes.length) throw new Error('not all requested scopes are available');
+				if (overlap.length < data.data.scopes.length) return reject(new Error('not all requested scopes are available'));
 			}
 
 			data.data.openid = discovery;
@@ -65,47 +65,40 @@ function init(data) {
 
 		return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
 			response => {
-				if (!response.ok) throw new Error(response.statusText);
+				if (!response.ok) return reject(new Error(response.statusText));
 				return response.json();
 			}
-		).then(
-			discovery => {
-				validate(discovery);
-			}
-		).catch(
-			error => {
-				reject(null);
-				console.error('init', error.message);
-				throw new Error('init: ' + error);
-			}
-		);
+		).then(discovery => validate(discovery));
 	});
 }
 
 let _tokens = null;
 function tokens(toks) {
 	if (toks && _tokens) _tokens = null;
+	if (_tokens) return _tokens;
 
-	_tokens = _tokens || config.then(config => { return new Promise((resolve, reject) => {
+	_tokens = config.then(config => { return new Promise((resolve, reject) => {
 		function request(params) {
 			params.append('client_id', config.client_id);
 
 			return fetch(config.openid.token_endpoint, {
 				method: 'POST',
 				body: params
-			}).then(
-				response => {
-					if (toks && response.status == 401)
-						return tokens({});
-					if (!response.ok) throw new error(response.statustext);
-					return response.json();
-				}
-			);
+			}).then(response => {
+				if (toks && response.status == 401)
+					return tokens({});
+				if (!response.ok) return reject(new Error(response.statustext));
+				return response.json();
+			}).then(json => {
+				json._ts = performance.now();
+				return json;
+			});
 		}
 
 		function authorize(params0, code_verifier) {
 			const id = uuidv4();
 
+			params0.append('client_id', config.client_id);
 			params0.append('redirect_uri', location.origin + config.redirect_uri),
 			params0.append('state', id);
 
@@ -114,39 +107,35 @@ function tokens(toks) {
 
 			const redirect = new Promise((resolve, reject) => {
 				pending[id] = { resolve: resolve, reject: reject };
-			}).then(
-				redirect => {
-					if (redirect.data.access_token) {
-						redirect.data._ts = performance.now();
-						resolve(redirect.data);
-						postMessage({ id: id, ok: true });
-						return;
-					}
-
-					const params = new URLSearchParams();
-
-					params.append('grant_type', 'authorization_code');
-					params.append('redirect_uri', location.origin + config.redirect_uri);
-					params.append('code', redirect.data.code);
-					if (params0.has('code_challenge'))
-						params.append('code_verifier', code_verifier);
-
-					return request(params).then(
-						json => {
-							json._ts = performance.now();
-							resolve(json);
-							postMessage({ id: id, ok: true });
-						}
-					).catch(
-						error => {
-							console.error('redirect', error.message);
-							reject(null);
-							postMessage({ id: id, ok: false, data: { error: error.message } });
-						}
-					);
-
+			}).then(redirect => {
+				if (redirect.data.access_token) {
+					redirect.data._ts = performance.now();
+					resolve(redirect.data);
+					postMessage({ id: id, ok: true });
+					return;
 				}
-			);
+
+				const params = new URLSearchParams();
+
+				params.append('grant_type', 'authorization_code');
+				params.append('redirect_uri', location.origin + config.redirect_uri);
+				params.append('code', redirect.data.code);
+				if (params0.has('code_challenge'))
+					params.append('code_verifier', code_verifier);
+
+				return request(params).then(
+					json => {
+						resolve(json);
+						postMessage({ id: id, ok: true });
+					}
+				).catch(
+					error => {
+						console.error('redirect', error.message);
+						reject(error);
+						postMessage({ id: id, ok: false, data: { error: error.message } });
+					}
+				);
+			});
 
 			postMessage({ type: 'authorize', id: id, data: {
 				uri: config.openid.authorization_endpoint + '?' + params0.toString()
@@ -160,15 +149,13 @@ function tokens(toks) {
 
 		const params = new URLSearchParams();
 
-		params.append('client_id', config.client_id);
-
 		switch (true) {
 		case !!(toks || {}).refresh_token:
 			params.append('grant_type', 'refresh_token');
 			params.append('refresh_token', toks.refresh_token);
 			cb = function(args) {
 				const [ ] = args;
-				request(params);
+				resolve(request(params));
 			}
 			break;
 		case config.openid.response_types_supported.includes('code'):
@@ -201,7 +188,7 @@ function tokens(toks) {
 				break;
 			default:
 				console.error('NYI');
-				throw new Error('NYI');
+				return reject(new Error('NYI'));
 			}
 			break;
 		case config.openid.response_types_supported.includes('token'):
@@ -216,6 +203,17 @@ function tokens(toks) {
 		return Promise.all(args).then(cb);
 	})});
 
+	config.then(config => {
+		if (!config.expires_in) return;
+		_tokens.then(tokens => {
+			if (tokens.expires_in < config._expires_in) return;
+			setTimeout(function(){
+				tokens.access_token = 'DEBUG_EXPIRES_IN';
+				_tokens = Promise.resolve(tokens)
+			}, config.expires_in * 1000);
+		});
+	});
+
 	return _tokens;
 }
 
@@ -228,7 +226,7 @@ function _do_fetch(data, toks) {
 		return fetch(data.data.uri, data.data.options).then(
 			response => {
 				if (response.status == 401)
-					return do_fetch(data, toks);
+					return _do_fetch(data, toks);
 				return response;
 			},
 			error => {
