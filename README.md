@@ -4,6 +4,16 @@ It is [generally considered unsafe to use `implicit` grant with SPA](https://aut
 
 Interaction with the Web Worker is via a [Promise based interface](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) that tries mimic the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API); requests will have a suitable HTTP `Authorization` header added to them.
 
+## Demo
+
+**N.B.** currently not working, need to hunt for a public OAuth2 provider that supports PKCE
+
+You will need Python 3 installed, but you should be able to just run:
+
+    ./demo.py
+
+Now open http://localhost:5000 in your browser, open developer tools and show the JavaScript console with the network panel.  Now click on 'Login' and inspect the activity.
+
 ## Related Links
 
  * [OAuth 2.0 for Browser-Based Apps](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/)
@@ -18,17 +28,6 @@ You will need:
      * supports [PKCE (strongly recommended)](https://oauth.net/2/pkce/)
          * [`implicit`](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
  * `client_id` to use with your application
-
-Check out the project with:
-
-    git checkout https://gitlab.com/jimdigriz/oauth2-worker.git
-    cd oauth2-worker
-
-# Demo
-
-    ./demo.py
-
-Now open http://localhost:5000 in your browser, open developer tools and show the JavaScript console and click on Login.
 
 # Usage
 
