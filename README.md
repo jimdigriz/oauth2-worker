@@ -97,6 +97,8 @@ Where:
      * make sure to monitor for updates to the original document by your OAuth2 provider
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
+You must supply all of the above, except you may provide only either `discovery_endpoint` (recommended where possible) or `discovery_document`.
+
 ### `authorize_callback`
 
 Assuming you have a button on your page (with the ID `button`) you can use something like:
