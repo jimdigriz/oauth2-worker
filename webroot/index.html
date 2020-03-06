@@ -35,12 +35,18 @@
           button.setAttribute('disabled', '');
           button.textContent = 'Logging in...';
           promise.resolve({ resolve: resolve, reject: reject });
-        }).then(data => {
-          console.log('success', data);
-          button.textContent = 'Logged in';
-        }).catch(error => {
-          console.log('failed', error);
-          button.textContent = 'Login Failed';
+        }).then(
+	  data => {
+            console.log('success', data);
+            button.textContent = 'Logged in';
+          },
+          data => {
+            console.log('failed', data);
+            button.textContent = 'Login Failed';
+          }
+        ).catch(error => {
+          console.log('error', error);
+          button.textContent = 'Login Error';
         });
       };
     };
@@ -53,7 +59,6 @@
       authorize_callback: authorize,
       scopes: [ 'openid', 'email', 'profile' ]
     });
-
     oauth2.whoami().then(whoami => {
       document.getElementById('name').textContent = whoami.name;
       document.getElementById('email').textContent = whoami.email;

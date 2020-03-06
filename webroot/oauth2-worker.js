@@ -42,18 +42,6 @@ function init(data) {
 	data.data.scopes = data.data.scopes || [];
 
 	config = new Promise((resolve, reject) => {
-		if (!data.data.discovery_endpoint) {
-			return resolve({
-				client_id: data.data.client_id,
-				redirect_uri: data.data.redirect_uri,
-				scopes: data.data.scopes,
-				openid: {
-					authorization_endpoint: data.data.authorization_endpoint,
-					token_endpoint: data.data.token_endpoint,
-					userinfo_endpoint: data.data.userinfo_endpoint
-				}
-			});
-		}
 		fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(
 			response => {
 				if (!response.ok) throw new Error(response.statusText);
@@ -64,17 +52,12 @@ function init(data) {
 				if (!(json.response_types_supported.includes('code') || json.response_types_supported.includes('token'))) throw new Error("only 'code' and 'token' supported");
 				const overlap = data.data.scopes.filter(scope => json.scopes_supported.includes(scope));
 				if (overlap.length < data.data.scopes.length) throw new Error('scopes not available');
-
-				resolve({
-					client_id: data.data.client_id,
-					redirect_uri: data.data.redirect_uri,
-					scopes: data.data.scopes,
-					openid: json
-				});
+				data.data.openid = json;
+				resolve(data.data);
 			}
 		).catch(
 			e => {
-				reject();
+				reject(null);
 				throw new Error('discovery: ' + e.message);
 			}
 		);
@@ -117,7 +100,7 @@ function tokens(tokens) {
 				);
 			} else {
 				a.push(
-					[ 'response_type',		config.openid.response_types_supported.includes('token') ? 'token' : 'implicit' ],
+					[ 'response_type',		'token' ],
 				);
 			}
 
@@ -131,11 +114,7 @@ function tokens(tokens) {
 			const [ config, redirect ] = args;
 
 			if (redirect.data.access_token) {
-				resolve({
-					type: redirect.data.token_type,
-					access: redirect.data.access_token,
-					id: redirect.data.id_token
-				});
+				resolve(redirect.data);
 				postMessage({ id: redirect.id, ok: true });
 				return;
 			}
@@ -143,6 +122,8 @@ function tokens(tokens) {
 			const params = [
 				[ 'client_id', config.client_id ]
 			];
+			if (config.client_secret && config.openid.token_endpoint_auth_methods_supported.includes('client_secret_post'))
+				params.push(['client_secret', config.client_secret]);
 //			if (redirect.data.code) {
 				params.push(
 					[ 'grant_type',		'authorization_code' ],
@@ -157,33 +138,30 @@ function tokens(tokens) {
 //				);
 //			}
 
+			const headers = {
+				'content-type': 'application/x-www-form-urlencoded'
+			};
+			if (config.client_secret && config.openid.token_endpoint_auth_methods_supported.includes('client_secret_basic'))
+				headers['authorization'] = 'Basic ' + btoa(config.client_id + ':' + config.client_secret);
 			fetch(config.openid.token_endpoint, {
 				method: 'POST',
-				headers: {
-					'content-type': 'application/x-www-form-urlencoded'
-				},
+				headers: headers,
 				body: a2qs(params)
 			}).then(
 				response => {
 					if (!response.ok) throw new Error(response.statusText);
-					return response.text();
+					return response.json();
 				}
 			).then(
-				body => {
-					const json = JSON.parse(body);
-					resolve({
-						type: json.token_type,
-						access: json.access_token,
-						refresh: json.refresh_token,
-						id: json.id_token
-					});
+				json => {
+					resolve(json);
 					postMessage({ id: redirect.id, ok: true });
 				}
 			).catch(
 				error => {
 					console.error('redirect', error.message);
-					reject();
-					postMessage({ id: redirect.id, ok: false, data: { error: error } });
+					reject(null);
+					postMessage({ id: redirect.id, ok: false, data: { error: error.message } });
 				}
 			);
 		});
@@ -196,20 +174,21 @@ function _do_fetch(data) {
 	return tokens().then(tokens => {
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || {};
-		Object.keys(data.data.options.headers).forEach(k => {
-			if (k.toLowerCase() == 'authorization')
-				delete data.data.options.headers(k);
-		});
 		data.data.options.headers['authorization'] = [ tokens.type, tokens.access ].join(' ');
 
-		return fetch(data.data.uri, data.data.options).then(response => {
-			if (response.status == 401) {
-				_tokens = null;
-				return do_fetch(data);
+		return fetch(data.data.uri, data.data.options).then(
+			response => {
+				if (response.status == 401) {
+					_tokens = null;
+					return do_fetch(data);
+				}
+				return response;
+			},
+			error => {
+				postMessage({ id: data.id, ok: false, data: { error: error } });
 			}
-			return response;
-		}).catch(error => {
-			postMessage({ id: data.id, ok: false, data: { error: error } });
+		).catch(error => {
+			postMessage({ id: data.id, ok: false, data: { error: error.message } });
 		});
 	});
 }
@@ -231,7 +210,7 @@ function do_whoami(data) {
 			}).then(json => {
 				postMessage({ id: data.id, ok: true, data: json });
 			}).catch(error => {
-				postMessage({ id: data.id, ok: false, data: { error: error } });
+				postMessage({ id: data.id, ok: false, data: { error: error.message } });
 			});
 		});
 	});

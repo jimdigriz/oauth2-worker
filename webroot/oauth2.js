@@ -75,9 +75,9 @@ const OAuth2 = (function() {
 			const promise = pending[event.data.id];
 			delete pending[event.data.id];
 			if (event.data.ok)
-				promisevent.resolve(event.data.data)
+				promise.resolve(event.data.data)
 			else
-				promisevent.reject(event.data.data);
+				promise.reject(event.data.data);
 		}
 	}
 
@@ -108,6 +108,8 @@ const OAuth2 = (function() {
 				delete options.headers[k];
 				options.headers[k.toLowerCase()] = v;
 			});
+			if ('authorization' in headers)
+				throw new Error("contains 'authorization' header");
 		}
 		if (options.body && !(options.headers && options.headers['content-type'])) {
 			options.headers = options.headers || {};
