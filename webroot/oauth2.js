@@ -1,7 +1,6 @@
 const OAuth2 = (function() {
-	const self = {};
-
 	const pending = {};
+
 	let worker = null;
 	let authorize_callback = null;
 
