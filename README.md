@@ -88,7 +88,7 @@ Where:
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
-     * **[AWS Cognito](https://aws.amazon.com/cognito/):** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]` (use `discovery_document` as supports PKCE but does not advertise it)
+     * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]` (use `discovery_document` as supports PKCE but does not advertise it)
      * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com` (use `discovery_document` as does not have [CORS headers](https://gitlab.com/gitlab-org/gitlab/-/issues/209259))
  * **`discovery_document`:** contents of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
@@ -160,7 +160,7 @@ On error, response is:
 
 Related and strongly recommended, but not needed for this project, you should set a suitable [Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) (as well as some other helpful headers) when serving your main application to help you make sure only requests you have whitelisted can be made.
 
-A starting example that supports [AWS Cognito](https://aws.amazon.com/cognito/) is:
+A starting example that supports AWS Cognito is:
 
     Content-Security-Policy: default-src 'self' *.amazonaws.com *.amazoncognito.com; frame-ancestors 'none'; report-uri /_/csp-reports
     X-Frame-Options: deny
