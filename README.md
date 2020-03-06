@@ -52,8 +52,9 @@ You will need:
  * OAuth2 provider:
      * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
          * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
-     * supports [PKCE](https://oauth.net/2/pkce/)
-         * [implicit grant](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
+     * supports either [PKCE](https://oauth.net/2/pkce/) or the [implicit grant](https://tools.ietf.org/html/rfc6749#section-1.3.2)
+         * using the implicit grant will (briefly) expose your `access_token` through `window.onmessage`
+         * the implicit grant does not make available a refresh token so login sessions will be short
  * `client_id` to use with your application
 
 # Usage
