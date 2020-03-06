@@ -1,4 +1,4 @@
-const OAuth2 = (function() {
+export const OAuth2 = (function() {
 	const pending = {};
 
 	let worker = null;
