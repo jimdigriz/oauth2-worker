@@ -103,6 +103,7 @@ function tokens(tokens) {
 			const [ config, redirect ] = args;
 
 			if (redirect.data.access_token) {
+				redirect.data._ts = performance.now();
 				resolve(redirect.data);
 				postMessage({ id: redirect.id, ok: true });
 				return;
@@ -136,6 +137,7 @@ function tokens(tokens) {
 				}
 			).then(
 				json => {
+					json._ts = performance.now();
 					resolve(json);
 					postMessage({ id: redirect.id, ok: true });
 				}
