@@ -61,8 +61,7 @@ function init(data) {
 			}
 		).then(
 			json => {
-				if (!json.response_types_supported.includes('code')) throw new Error("only 'code' supported");
-
+				if (!(json.response_types_supported.includes('code') || json.response_types_supported.includes('token'))) throw new Error("only 'code' and 'token' supported");
 				const overlap = data.data.scopes.filter(scope => json.scopes_supported.includes(scope));
 				if (overlap.length < data.data.scopes.length) throw new Error('scopes not available');
 
@@ -83,7 +82,7 @@ function init(data) {
 }
 
 let _tokens = null;
-function tokens() {
+function tokens(tokens) {
 	if (_tokens instanceof Promise)
 		return _tokens;
 
@@ -118,7 +117,7 @@ function tokens() {
 				);
 			} else {
 				a.push(
-					[ 'response_type',		'token' ],
+					[ 'response_type',		config.openid.response_types_supported.includes('token') ? 'token' : 'implicit' ],
 				);
 			}
 
