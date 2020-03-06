@@ -1,6 +1,6 @@
 A [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker) to handle [OAuth2 authentication flows](https://oauth.net/articles/authentication/) suitable for use with in [Single Page Application (SPA)](https://tools.ietf.org/html/draft-ietf-oauth-browser-based-apps) by storing tokens outside of the [main JavaScript Window Global scope](https://developer.mozilla.org/en-US/docs/Web/API/Window).
 
-It is [considered unsafe to use implicit flow for SPAs](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but by using a Web Worker as a key vault all tokens can be kept locked away with zero risk of being leaking to third party JavaScript.  This means we can now [request and retain safely the refresh token](https://www.oauth.com/oauth2-servers/access-tokens/refreshing-access-tokens/) to allow for long lived sessions that do not require regular user action to re-authenticate.
+It is generally considered [unsafe to use the implicit grant for SPAs](https://auth0.com/blog/oauth2-implicit-grant-and-spa/) but by using a Web Worker as a key vault all tokens can be kept locked away with zero risk of being leaked to any third party JavaScript on the page.  This means we can now [request and retain the refresh token](https://www.oauth.com/oauth2-servers/access-tokens/refreshing-access-tokens/) to allow for long lived sessions that do not require regular user action to re-authenticate.
 
 From a developer perspective, requests to HTTP endpoints requiring [bearer tokens](https://www.oauth.com/oauth2-servers/access-tokens/) to access must be pushed through an interface that aims to follow the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and communicates with the Web Worker to make the request on your behalf which will in turn add the HTTP `Authorization` header for you.
 
@@ -9,22 +9,23 @@ From a developer perspective, requests to HTTP endpoints requiring [bearer token
 The aim of the project is:
 
  * keep your tokens safe
+ * easy to use (both for the developer and end user)
  * transparently handle the renewing of your tokens
  * handle requests on your behalf by adding an `Authorization` header
      * later [signing](https://gitlab.com/jimdigriz/oauth2-worker/issues/3)
 
 The choice to use a Web Worker came about as:
 
- * provides a non-technical end user a familiar and bullet proof way to control logging out (close tab or reload page)
-     * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) ([which others have considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff)) makes hard for the end user to control
+ * provides a non-technical end user a familiar, expected and non-overridable bullet proof way to log out by closing or reloading the tab
+     * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) ([which others have considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff)) makes this difficult for the end user to control
  * every tab is its own session
-     * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult
- * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as it would come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
+     * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult for a developer and requires session management
+ * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as messages would all come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
      * interface with the Web Worker is only directly available from within (private to) the `OAuth2` class
- * straight forward for the developer to securely use
+ * straight forward for the developer to safely use and hopefully hard to make a mistake
      * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
      * if you expose the class, third party JavaScript will be able to make HTTP requests with your access token
-         * they could use an HTTP endpoint under their control to send arbitrary requests to obtain your access token
+         * they could use an HTTP endpoint under their control to send your access token to
              * mitigations for this are covered in "Serving HTTP Headers for your Application"
          * fortunately they still will have no access to your refresh token
 
@@ -32,13 +33,13 @@ One advantage of a service worker is that it can be used for the entire lifetime
 
 ## Demo
 
-You will need Python 3 installed and a [`gitlab.com`](https://about.gitlab.com/) account.  If you want to demo against your own OAuth2 provider then do edit [`index.html`](webroot/index.html) per the usage instructions below and 
+You will need Python 3 installed and a [`gitlab.com`](https://about.gitlab.com/) account.  If you want to demo against your own OAuth2 provider then do amend [`index.html`](webroot/index.html) per the usage instructions below.
 
 Now run:
 
     ./demo.py
 
-Now open http://localhost:5000 in your browser, open developer tools and show the JavaScript console with the network panel.  Now click on 'Login' and inspect the activity.
+Now open http://localhost:5000/ in your browser, open developer tools, go to the network panel and also open the JavaScript console there too.  Now click on 'Login' and inspect the activity.
 
 ## Related Links
 
@@ -51,8 +52,8 @@ You will need:
  * OAuth2 provider:
      * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
          * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
-     * supports [PKCE (strongly recommended)](https://oauth.net/2/pkce/)
-         * [implicit flow](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
+     * supports [PKCE](https://oauth.net/2/pkce/)
+         * [implicit grant](https://tools.ietf.org/html/rfc6749#section-1.3.2) is supported as a fallback but it will (briefly) expose your `access_token` through `window.onmessage`
  * `client_id` to use with your application
 
 # Usage
@@ -63,7 +64,7 @@ You will need to include in your project from the [`webroot`](webroot) directory
  * **`oauth2-worker.js`:** web worker
  * **`oauth2-redirect.html` and `oauth2-redirect.js`:** page used to bounce the authentication off
 
-It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference.
+It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference to understand the moving parts.
 
 ## `new OAuth2()`
 
@@ -82,11 +83,16 @@ Where:
  * **`client_secret [optional]`:** your application secret
      * avoid creating when registering your application in your provider if possible
          * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab does not](https://docs.gitlab.com/ee/api/oauth2.html)
-     * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published
+     * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
-     * Google for example uses [https://accounts.google.com](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
+     * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
+     * **[AWS Cognito](https://aws.amazon.com/cognito/):** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
+     * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com` (does not work as it has no CORS headers)
+ * **`discovery_document`:** contents of `/.well-known/openid-configuration`
+     * only use this if your discovery endpoint does not support CORS
+     * your OAuth2 provider may require you to regularly update this
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
 ### `authorize_callback`
@@ -113,7 +119,9 @@ Assuming you have a button on your page (with the ID `button`) you can use somet
       };
     };
 
-We provide a callback that is called when authentication is required, and when called is passed the resolvable parts to promise.  The UI at this point should indicate to the user that an authentication is required and provide an interaction (such as a button/form 'Login' click) to be made.  On the interaction, we resolve the promise we were passed which begins the authentication in a new tab whilst passing in a promise of our own to get feedback on the outcome.
+This creates a callback to be called whenever authentication is required, and when called is passed the resolvable parts to promise.  The UI at this point should indicate to the user that an authentication is required and provide an interaction (such as a button/form 'Login' click) to be made.  On the interaction, we resolve the promise we were passed which begins the authentication in a new tab whilst passing in a promise of our own to get feedback on the outcome.
+
+**N.B.** your application must support handling this callback being called at anytime such as by opening a [modal](https://en.wikipedia.org/wiki/Modal_window)
 
 ## `.whoami()`
 
@@ -133,8 +141,6 @@ You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web
     oauth2.fetch('https://...', { method: 'PUT', headers: { 'Content-Type': ... }, body: ..., ... }).then(response => {
       console.log(response);
     });
-
-Differing to the Fetch API, `body` is either a string ([instance types are not available](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#Body) as they are not serialisable to the Web Worker) or [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) (which will force `Content-Type` to `application/x-www-form-urlencoded; charset=utf-8`).
 
 The response on success is:
 
