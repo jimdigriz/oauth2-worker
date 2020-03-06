@@ -91,8 +91,10 @@ Where:
      * **[AWS Cognito](https://aws.amazon.com/cognito/):** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
      * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com` (does not work as it has no CORS headers)
  * **`discovery_document`:** contents of `/.well-known/openid-configuration`
-     * only use this if your discovery endpoint does not support CORS
-     * your OAuth2 provider may require you to regularly update this
+     * only use this if your discovery endpoint does not support CORS or is incorrect
+     * override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
+         * AWS Cognito supports PKCE but does not advertise `code_challenge_methods_supported`
+     * make sure to monitor for updates to the original document by your OAuth2 provider
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
 ### `authorize_callback`

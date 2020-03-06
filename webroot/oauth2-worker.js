@@ -112,9 +112,6 @@ function tokens(tokens) {
 
 			params.append('client_id', config.client_id);
 
-			if (config.client_secret && config.openid.token_endpoint_auth_methods_supported.includes('client_secret_post'))
-				params.append('client_secret', config.client_secret);
-
 //			if (redirect.data.code) {
 				params.append('grant_type', 'authorization_code');
 				params.append('redirect_uri', location.origin + config.redirect_uri);
@@ -128,8 +125,6 @@ function tokens(tokens) {
 			const headers = {
 				'content-type': 'application/x-www-form-urlencoded'
 			};
-			if (config.client_secret && config.openid.token_endpoint_auth_methods_supported.includes('client_secret_basic'))
-				headers['authorization'] = 'Basic ' + btoa(config.client_id + ':' + config.client_secret);
 			fetch(config.openid.token_endpoint, {
 				method: 'POST',
 				headers: headers,

@@ -85,7 +85,7 @@ const OAuth2 = (function() {
 		if (typeof config != 'object') throw new Error('missing configuration object');
 		if (typeof config.client_id != 'string') throw new Error("missing 'client_id' string");
 		if (typeof config.redirect_uri != 'string') throw new Error("missing 'redirect_uri' string");
-		if (typeof config.discovery_endpoint != 'string') throw new Error("missing 'discovery_endpoint' string");
+		if (typeof (config.discovery_endpoint || config.discovery_document) != 'string') throw new Error("missing 'discovery_{endpoint,document}' string");
 		if (typeof config.authorize_callback != 'function') throw new Error("missing 'authorize_callback' function");
 
 		authorize_callback = config.authorize_callback;
