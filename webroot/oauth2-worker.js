@@ -117,9 +117,9 @@ function tokens(tokens) {
 				params.append('redirect_uri', location.origin + config.redirect_uri);
 				params.append('code', redirect.data.code);
 				params.append('code_verifier', code_verifier);
-//			} else if (tokens.refresh) {
+//			} else if (tokens.refresh_token) {
 //				params.append('grant_type', 'refresh_token');
-//				params.append('refresh_token', tokens.refresh);
+//				params.append('refresh_token', tokens.refresh_token);
 //			}
 
 			const headers = {
@@ -156,7 +156,7 @@ function _do_fetch(data) {
 	return tokens().then(tokens => {
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || {};
-		data.data.options.headers['authorization'] = [ tokens.type, tokens.access ].join(' ');
+		data.data.options.headers['authorization'] = [ tokens.token_type, tokens.access_token ].join(' ');
 
 		return fetch(data.data.uri, data.data.options).then(
 			response => {
@@ -177,8 +177,8 @@ function _do_fetch(data) {
 
 function do_whoami(data) {
 	tokens().then(tokens => {
-		if (tokens.id) {
-			const json = JSON.parse(base64url_decode(tokens.id.split('.')[1]));
+		if (tokens.id_token) {
+			const json = JSON.parse(base64url_decode(tokens.id_token.split('.')[1]));
 			return postMessage({ id: data.id, ok: true, data: json });
 		}
 		config.then(config => {
