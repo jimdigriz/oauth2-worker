@@ -73,8 +73,8 @@ We start by initialising a fresh OAuth2 instance:
 
     const oauth2 = new OAuth2({
       client_id: '...',
-      redirect_uri: '/oauth2-redirect.html',
       discovery_endpoint: 'https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_...',
+      redirect_uri: '/oauth2-redirect.html',
       authorize_callback: authorize
     });
 
@@ -84,8 +84,6 @@ Where:
      * avoid creating a `client_secret` when registering your application in your provider if possible
          * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab does not](https://docs.gitlab.com/ee/api/oauth2.html)
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
- * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
-     * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
      * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
@@ -97,6 +95,8 @@ Where:
      * override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
          * AWS Cognito supports PKCE but does not advertise `code_challenge_methods_supported`
      * make sure to monitor for updates to the original document by your OAuth2 provider
+ * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
+     * this must be registered with your OAuth2 provider
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
 You must supply all of the above, except you may provide only either `discovery_endpoint` (recommended where possible) or `discovery_document`.
