@@ -128,6 +128,10 @@ function tokens(toks) {
 			if (config.scopes)
 				params0.append('scope', config.scopes.join(' '));
 
+			// https://developers.google.com/identity/protocols/OAuth2WebServer#offline
+			if (config.discovery_endpoint == 'https://accounts.google.com')
+				params.append('access_type', 'offline');
+
 			const redirect = new Promise((resolve, reject) => {
 				pending[id] = { resolve: resolve, reject: reject };
 			}).then(redirect => {
@@ -226,10 +230,13 @@ function tokens(toks) {
 	config.then(config => {
 		if (!config.expires_in) return;
 		_tokens.then(tokens => {
-			if (tokens.expires_in < config._expires_in) return;
+			if (tokens.expires_in < config.expires_in) return;
+			// we use 2x so the demo sees the 401
+			tokens.expires_in = config.expires_in * 2;
+			_tokens = Promise.resolve(tokens);
 			setTimeout(function(){
-				tokens.access_token = 'DEBUG_EXPIRES_IN';
-				_tokens = Promise.resolve(tokens)
+				tokens.access_token = 'EXPIRED';
+				_tokens = Promise.resolve(tokens);
 			}, config.expires_in * 1000);
 		});
 	});
@@ -239,6 +246,9 @@ function tokens(toks) {
 
 function _do_fetch(data, toks) {
 	return tokens(toks).then(toks => {
+                if (toks._ts + (toks.expires_in * 1000) < performance.now())
+			return _do_fetch(data, toks);
+
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || {};
 		data.data.options.headers['authorization'] = [ toks.token_type, toks.access_token ].join(' ');
@@ -260,7 +270,7 @@ function _do_fetch(data, toks) {
 
 function do_whoami(data) {
 	tokens().then(tokens => {
-		if (tokens.id_token) {
+		if (tokens.id_token && data.data.type != 'userinfo') {
 			const json = JSON.parse(base64url_decode(tokens.id_token.split('.')[1]));
 			return postMessage({ id: data.id, ok: true, data: json });
 		}

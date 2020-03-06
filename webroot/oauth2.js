@@ -96,8 +96,8 @@ export const OAuth2 = (function() {
 		worker.postMessage({ type: 'init', data: config });
 	}
 
-	OAuth2.prototype.whoami = function() {
-		return send({ type: 'whoami' });
+	OAuth2.prototype.whoami = function(type) {
+		return send({ type: 'whoami', data: { type: type } });
 	};
 
 	OAuth2.prototype.fetch = function(uri, options) {

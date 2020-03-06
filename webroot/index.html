@@ -38,6 +38,19 @@
           data => {
             console.log('success', data);
             button.textContent = 'Logged in';
+
+            // the access token expires after two seconds so fetch something
+            // after three if you have a refresh token, this will be transparent,
+            // if you do not then the login button will be re-enabled
+            setTimeout(function(){
+              if (document.getElementById('name').textContent.length) {
+                  oauth2.whoami('userinfo').then(whoami => { console.log('refresh', whoami) });
+              } else {
+                  oauth2.fetch(location.origin + '/userinfo').then(response => {
+                    console.log('fetch', response)
+                  });
+              }
+            }, 3000);
           },
           data => {
             console.log('failed', data);
@@ -69,16 +82,15 @@
       scopes: [ 'openid', 'email', 'profile' ],
       redirect_uri: '/oauth2-redirect.html',
       authorize_callback: authorize,
-//      expires_in: 2,
+
+      // to show the refresh token working, we forcibly expire
+      // token after two seconds (do not use this in production!)
+      expires_in: 2,
     });
 
     oauth2.whoami().then(whoami => {
       document.getElementById('name').textContent = whoami.name;
       document.getElementById('email').textContent = whoami.email;
-    });
-
-    oauth2.fetch(location.origin + '/userinfo').then(response => {
-      console.log('fetch', response)
     });
   </script>
  </body>
