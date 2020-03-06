@@ -33,7 +33,7 @@ One advantage of a service worker is that it can be used for the entire lifetime
 
 ## Demo
 
-You will need Python 3 installed and a [`gitlab.com`](https://about.gitlab.com/) account.  If you want to demo against your own OAuth2 provider then do amend [`index.js`](webroot/index.js) per the usage instructions below.
+You will need Python 3 installed and a [`gitlab.com`](https://about.gitlab.com/) account.  If you want to demo against your own OAuth2 provider then do amend [`index.html`](webroot/index.html) per the usage instructions below.
 
 Now run:
 
@@ -65,7 +65,7 @@ You will need to include in your project from the [`webroot`](webroot) directory
  * **`oauth2-worker.js`:** web worker
  * **`oauth2-redirect.html` and `oauth2-redirect.js`:** page used to bounce the authentication off
 
-It may help to start looking at the [example demo `index.{html,js}`](webroot/index.html) and then use the following as a reference to understand the moving parts.
+It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference to understand the moving parts.
 
 ## `new OAuth2()`
 
