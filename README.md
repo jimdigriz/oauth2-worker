@@ -88,7 +88,7 @@ Where:
      * this must be registered with your OAuth2 provider
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
      * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
-     * **[AWS Cognito](https://aws.amazon.com/cognito/):** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
+     * **[AWS Cognito](https://aws.amazon.com/cognito/):** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]` (supprots PKCE but does not advertise it)
      * **[GitLab](https://docs.gitlab.com/ee/api/oauth2.html):** `https://gitlab.com` (does not work as it has no CORS headers)
  * **`discovery_document`:** contents of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
