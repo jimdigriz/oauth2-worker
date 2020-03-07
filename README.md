@@ -25,8 +25,8 @@ The choice to use a Web Worker came about as:
  * straight forward for the developer to safely use and hopefully hard to make a mistake
      * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
      * if you expose the class, third party JavaScript will be able to make HTTP requests with your access token
-         * they could use an HTTP endpoint under their control to send your access token to
-             * mitigations for this are covered in "Serving HTTP Headers for your Application"
+         * they could use an HTTP endpoint under their control to receive a copy of your access token
+             * mitigations for this are covered in [Serving HTTP Headers for your Application](#serving-http-headers-for-your-application)
          * fortunately they still will have no access to your refresh token
 
 One advantage of a service worker is that it can be used for the entire lifetime of the refresh token and the user effectively remains logged in even after the tab is closed, reloaded or navigated to elsewhere.  Fortunately most OAuth2 providers make re-authenticating straight forward, fast and often either involving no more than a single click or backed by their own cookies and immediate so the inconvenience experienced is considerably reduced.
