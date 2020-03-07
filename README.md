@@ -56,6 +56,9 @@ You will need:
          * using the implicit grant will (briefly) expose your `access_token` through `window.onmessage`
          * the implicit grant does not make available a refresh token so login sessions will be short
  * `client_id` to use with your application
+ * your API endpoints must return CORS headers for 401 errors
+     * this really only causes a problem when you administratively expire access tokens
+     * the worker will not fetch new tokens untill the original expiry time of the access_token has elapsed
 
 # Usage
 
@@ -67,7 +70,40 @@ You will need to include in your project from the [`webroot`](webroot) directory
 
 It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference to understand the moving parts.
 
-## `new OAuth2()`
+## Integration Notes
+
+### Okta
+
+[Okta](https://okta.com) has the following notes:
+
+ * `discovery_document`: `https://dev-[ID].okta.com`
+ * does not return a refresh token resulting in short sessions
+     * [scope `offline_access`](https://developer.okta.com/docs/guides/refresh-tokens/get-refresh-token/) only works for non-browsers
+ * does not return CORS headers on 401s (for example on `/oauth2/v1/userinfo`)
+
+### AWS Cognito
+
+[AWS Cognito](https://aws.amazon.com/cognito/) has the following notes:
+
+ * `discovery_document`: `https://cognito-idp.[REGION].amazonaws.com/[REGION]_[USER-POOL-ID]`
+ * `discovery_overlay`: `{ code_challenge_methods_supported: [ 'S256' ] }`
+
+### Google
+
+[Google](https://developers.google.com/identity/protocols/OAuth2) has the following notes:
+
+ * `discovery_document`: [`https://accounts.google.com`](https://developers.google.com/identity/protocols/OpenIDConnect#discovery)
+
+### GitLab
+
+[GitLab](https://docs.gitlab.com/ee/api/oauth2.html) has the following notes:
+
+ * [Unusable](https://gitlab.com/gitlab-org/gitlab/-/issues/209259)
+     * if you disable CORS checking in your browser then you can see it working
+
+## Interface
+
+### `new OAuth2()`
 
 We start by initialising a fresh OAuth2 instance:
 
@@ -83,25 +119,27 @@ Where:
  * **`client_id`:** your application id (assigned by your OAuth2 provider)
  * **`client_secret` [optional and not recommended]:** your application secret
      * try to avoid creating this when registering your application in your provider if possible
-         * [AWS Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-configuring-app-integration.html) lets you do this whilst [GitLab](https://docs.gitlab.com/ee/api/oauth2.html) and Google do not
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
-     * **AWS Cognito:** `https://cognito-idp.eu-west-1.amazonaws.com/[REGION]_[USER-POOL-ID]`
-         * use `discovery_overlay` as supports PKCE but does not advertise it
-     * **[Google](https://developers.google.com/identity/protocols/OpenIDConnect#discovery):** `https://accounts.google.com`
  * **`discovery_overlay`:** object representation matching format of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
      * keys found in here will overwrite keys from `discovery_endpoint`
      * use this to override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
-         * AWS Cognito: `{ code_challenge_methods_supported: [ 'S256' ] }`
      * make sure to monitor for updates to the original document by your OAuth2 provider
  * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
      * this must be registered with your OAuth2 provider
+ * **`scopes` (default: `[]`, recommended: `[ 'openid', 'email', 'profile' ]`):** scopes you wish to obtain a token for
  * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
 
 You must supply all of the above, except `discovery_endpoint` is optional but requires `discovery_overlay` in its place (you can specify both and `discovery_overlay` will overwrite keys from `discovery_endpoint`).
 
-### `authorize_callback`
+#### Debugging
+
+Also supported as options are:
+
+ * **`expires_in` (seconds):** forcibly expire your access token early
+
+#### `authorize_callback`
 
 Assuming you have a button on your page (with the ID `button`) you can use something like:
 
@@ -129,13 +167,7 @@ This creates a callback to be called whenever authentication is required, and wh
 
 **N.B.** your application must support handling this callback being called at anytime such as by opening a [modal](https://en.wikipedia.org/wiki/Modal_window)
 
-### Debugging
-
-Also supported as options are:
-
- * **`expires_in` (seconds):** forcibly expire your access token early
-
-## `.whoami()`
+### `.whoami()`
 
     oauth2.whoami().then(whoami => { console.log(whoami) });
 
@@ -148,7 +180,7 @@ If nothing is available, then `null` is returned.
 
 **N.B.** you may force returning UserInfo by calling `oauth2.whoami('userinfo').then(...)`
 
-## `.fetch()`
+### `.fetch()`
 
 You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for a overview of this.
 
@@ -170,7 +202,7 @@ On error, response is:
 
 Related and strongly recommended, but not needed for this project, you should set a suitable [Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) (as well as some other helpful headers) when serving your main application to help you make sure only requests you have whitelisted can be made.
 
-A starting example that supports AWS Cognito is:
+A example that supports AWS Cognito) is:
 
     Content-Security-Policy: default-src 'self' *.amazonaws.com *.amazoncognito.com; frame-ancestors 'none'; report-uri /_/csp-reports
     X-Frame-Options: deny
