@@ -147,8 +147,9 @@ Assuming you have a button on your page (with the ID `button`) you can use somet
       // set up the UI to reflect we need to log in but
       // as our login window will be opened in a new tab,
       // we require an user interaction (click) to open it
-      document.getElementById('button').onclick = function(e) {
-        e.preventDefault();
+      }, { once: true });
+      document.getElementById('button').addEventListener('click', event => {
+        event.preventDefault();
 
         new Promise((resolve, reject) => {
           // set up the UI to reflect that we are attempting to login
@@ -160,7 +161,7 @@ Assuming you have a button on your page (with the ID `button`) you can use somet
           // set up the UI to reflect that login has failed
           console.log('failed', error);
         });
-      };
+      }, { once: true });
     };
 
 This creates a callback to be called whenever authentication is required, and when called is passed the resolvable parts to promise.  The UI at this point should indicate to the user that an authentication is required and provide an interaction (such as a button/form 'Login' click) to be made.  On the interaction, we resolve the promise we were passed which begins the authentication in a new tab whilst passing in a promise of our own to get feedback on the outcome.

@@ -27,8 +27,8 @@
       const button = document.getElementById('button');
       button.textContent = 'Login';
       button.removeAttribute('disabled');
-      button.onclick = function(e) {
-        e.preventDefault();
+      button.addEventListener('click', event => {
+        event.preventDefault();
 
         new Promise((resolve, reject) => {
           button.setAttribute('disabled', '');
@@ -55,7 +55,7 @@
           console.log('error', error);
           button.textContent = 'Login Error';
         });
-      };
+      }, { once: true });
     };
 
     const oauth2 = new OAuth2({
