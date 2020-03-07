@@ -102,15 +102,28 @@ export const OAuth2 = (function() {
 
 	OAuth2.prototype.fetch = function(uri, options) {
 		options = options || {}
-		if (options.headers) {
-			options.headers = Object.keys(options.headers).reduce((a, k) => {
-				a[k.toLowerCase()] = options.headers[k];
-				return a;
-			}, {});
-			if ('authorization' in headers)
-				throw new Error("contains 'authorization' header");
+
+		switch (true) {
+		case options.headers === undefined:
+		case options.headers instanceof Headers:
+			break;
+		case options.headers instanceof Array:
+		case options.headers instanceof Object:
+			options.headers = new Headers(options.headers);
+			break;
+		default:
+			return Promise.reject(new Error("unsupported headers representation"));
 		}
-		return send({ type: 'fetch', data: { uri: uri, options: options } });
+		if (options.headers) {
+			if (options.headers.has('authorization'))
+				return Promise.reject(new Error("contains 'authorization' header"));
+			options.headers = Array.from(options.headers.entries());
+		}
+
+		return send({ type: 'fetch', data: { uri: uri, options: options } }).then(response => {
+			response.headers = new Headers(response.headers);
+			return response;
+		});
 	};
 
 	return OAuth2;

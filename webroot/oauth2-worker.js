@@ -96,13 +96,13 @@ const config = new Promise((resolve, reject) => {
 let __tokens = Promise.reject({});
 function _tokens(refresh) {
 	function request(config, params) {
-		const headers = {};
+		const headers = new Headers();
 
 		params.append('client_id', config.client_id);
 		if (config.client_secret) {
 			switch (true) {
 			case config.openid.token_endpoint_auth_methods_supported.includes('client_secret_basic'):
-				headers['authorization'] = 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':'));
+				headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
 				break;
 			case config.openid.token_endpoint_auth_methods_supported.includes('client_secret_post'):
 				params.append('client_secret', config.client_secret);
@@ -288,8 +288,8 @@ function tokens(refresh) {
 function _do_fetch(data, refresh) {
 	return tokens(refresh).then(tokens => {
 		data.data.options = data.data.options || {};
-		data.data.options.headers = data.data.options.headers || {};
-		data.data.options.headers['authorization'] = [ tokens.token_type, tokens.access_token ].join(' ');
+		data.data.options.headers = data.data.options.headers || new Headers();
+		data.data.options.headers.append('authorization', [ tokens.token_type, tokens.access_token ].join(' '));
 
 		return fetch(data.data.uri, data.data.options).then(response => {
 			if (response.status == 401 && !refresh)
@@ -325,18 +325,18 @@ function do_whoami(data) {
 function do_fetch(data) {
 	let response = null;
 
+	if (data.data.headers)
+		data.data.headers = new Headers(data.data.headers);
+
 	_do_fetch(data).then(response0 => {
 		response = response0;
-		return response0.text();
-	}).then(body => {
-		const headers = {};
-		for (let pair of response.headers.entries())
-			headers[pair[0].toLowerCase()] = pair[1];
+		return response0.blob();
+	}).then(blob => {
 		postMessage({ id: data.id, ok: true, data: {
 			ok: response.ok,
 			status: response.status,
-			headers: headers,
-			body: body
+			headers: Array.from(response.headers.entries()),
+			body: blob
 		}});
 	}).catch(error => {
 		postMessage({ id: data.id, ok: false, data: { error: error.message } });

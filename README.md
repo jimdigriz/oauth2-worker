@@ -188,15 +188,23 @@ You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web
       console.log(response);
     });
 
+Where due to `.postMessage()` limitations differing from the Fetch API by:
+
+ * **`Body`:** [string](https://developer.mozilla.org/en-US/docs/Web/API/USVString) or [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob/Blob)
+
 The response on success is:
 
-    { ok: true, status: 200, headers: { ... }, body: "..." }
+    { ok: true, status: 200, headers: Headers, body: Blob }
+
+Where due to `.postMessage()` limitations differing from the Fetch API by:
+
+ * **`ok`:** boolean from [Response.ok](https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
+     * on an error, this will also be false but a key called `error` will be present as show below
+ * **`body`:** Blob from [Response.blob()](https://developer.mozilla.org/en-US/docs/Web/API/Body/blob)
 
 On error, response is:
 
     { ok: false, error: "..." }
-
-**N.B.** keys of the `headers` in both the request and response objects are lowercased (value is not changed)
 
 ## Serving HTTP Headers for your Application
 
