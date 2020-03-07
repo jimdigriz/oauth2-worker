@@ -255,8 +255,10 @@ function tokens(refresh) {
 	if (refresh) return _tokens(refresh);
 
 	return __tokens.then(
-		tokens => {
-			return tokens;
+		toks => {
+			if (toks._ts + (toks.expires_in * 1000) < performance.now())
+				return tokens(true);
+			return toks;
 		},
 		reason => {
 			return _tokens().then(
@@ -283,9 +285,6 @@ function tokens(refresh) {
 
 function _do_fetch(data, refresh) {
 	return tokens(refresh).then(tokens => {
-		if (tokens._ts + (tokens.expires_in * 1000) < performance.now())
-			return _do_fetch(data, true);
-
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || {};
 		data.data.options.headers['authorization'] = [ tokens.token_type, tokens.access_token ].join(' ');
@@ -343,7 +342,7 @@ function do_fetch(data) {
 }
 
 onmessage = function(event) {
-	console.info(event.data);
+//	console.info(event.data);
 
 	let dispatch = null;
 
