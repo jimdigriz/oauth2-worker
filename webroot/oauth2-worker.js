@@ -69,6 +69,7 @@ const config = new Promise((resolve, reject) => {
 				}
 			}
 		} catch(error) {
+			console.error(error);
 			return Promise.reject(error);
 		}
 
@@ -239,7 +240,7 @@ function _tokens(refresh) {
 				params.append('response_type', 'token');
 				cb = function(args) {
 					const [ ] = args;
-					authorize(params);
+					return authorize(config.value, params);
 				}
 				break ok;
 			}
