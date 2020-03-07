@@ -185,7 +185,7 @@ If nothing is available, then `null` is returned.
 
 You should refer to the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for a overview of this.
 
-    oauth2.fetch('https://...', { method: 'PUT', headers: { 'Content-Type': ... }, body: ..., ... }).then(response => {
+    oauth2.fetch('https://...', { method: 'PUT', headers: ..., body: Body, ... }).then(response => {
       console.log(response);
     });
 
