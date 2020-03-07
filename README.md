@@ -53,12 +53,12 @@ You will need:
      * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
          * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
      * supports either [PKCE](https://oauth.net/2/pkce/) or the [implicit grant](https://tools.ietf.org/html/rfc6749#section-1.3.2)
-         * using the implicit grant will (briefly) expose your `access_token` through `window.onmessage`
+         * using the implicit grant will (briefly) expose your access token through `window.onmessage`
          * the implicit grant does not make available a refresh token so login sessions will be short
  * `client_id` to use with your application
  * your API endpoints must return CORS headers for 401 errors
      * this really only causes a problem when you administratively expire access tokens
-     * the worker will not fetch new tokens untill the original expiry time of the access_token has elapsed
+     * the worker will not fetch new tokens untill the original expiry time of the access token has elapsed
 
 # Usage
 
