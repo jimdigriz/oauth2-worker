@@ -213,6 +213,7 @@ Related and strongly recommended, but not needed for this project, you should se
 
 A example that supports AWS Cognito) is:
 
-    Content-Security-Policy: default-src 'self' *.amazonaws.com *.amazoncognito.com; frame-ancestors 'none'; report-uri /_/csp-reports
+    Content-Security-Policy: default-src 'self' *.amazonaws.com *.amazoncognito.com; frame-ancestors 'none'; report-uri /_/reports/csp
+    X-XSS-Protection: 1; mode=block; report=/_/reports/xss
     X-Frame-Options: deny
     X-Content-Type-Options: nosniff
