@@ -262,7 +262,7 @@ function tokens(refresh) {
 			return toks;
 		},
 		reason => {
-			return _tokens().then(
+			__tokens = _tokens().then(
 				tokens => {
 					config.then(config => {
 						// we use +2 so the demo sees the 401
@@ -280,6 +280,7 @@ function tokens(refresh) {
 					console.error('token', reason);
 				}
 			);
+			return __tokens;
 		}
 	);
 }
