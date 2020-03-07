@@ -93,7 +93,7 @@ export const OAuth2 = (function() {
 
 		worker = new Worker('oauth2-worker.js');
 		worker.onmessage = recv;
-		worker.postMessage({ type: 'init', data: config });
+		worker.postMessage({ type: '_config', data: config });
 	}
 
 	OAuth2.prototype.whoami = function(type) {
