@@ -124,29 +124,28 @@ We start by initialising a fresh OAuth2 instance:
 
 Where:
 
- * **`client_id`:** your application id (assigned by your OAuth2 provider)
+ * **`client_id` [required]:** your application id (assigned by your OAuth2 provider)
  * **`client_secret` [optional and not recommended]:** your application secret
      * try to avoid creating this when registering your application in your provider if possible
      * SAP's are considered a [public ('untrusted') client](http://tutorials.jenkov.com/oauth2/client-types.html) as the secret would have to published making it no longer a secret and pointless
  * **`discovery_endpoint`:** points to the base URL of your OAuth2 endpoint (do not include `/.well-known/openid-configuration`)
+     * this is required without `discovery_overlay`
  * **`discovery_overlay`:** object representation matching format of `/.well-known/openid-configuration`
      * only use this if your discovery endpoint does not support CORS or is incorrect
      * keys found in here will overwrite keys from `discovery_endpoint`
      * use this to override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
      * make sure to monitor for updates to the original document by your OAuth2 provider
- * **`redirect_uri`:** the redirect URL to bounce the the authentication through (there should be no need to change this)
+ * **`redirect_uri (default: `/oauth2-redirect.html`)`:** the redirect URL to bounce the the authentication through
      * this must be registered with your OAuth2 provider
  * **`scopes` (default: `[]`, recommended: `[ 'openid', 'email', 'profile' ]`):** scopes you wish to obtain a token for
- * **`authorize_callback`:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
-
-You must supply all of the above, except `discovery_endpoint` is optional but requires `discovery_overlay` in its place (you can specify both and `discovery_overlay` will overwrite keys from `discovery_endpoint`).
+ * **`authorize_callback` [required]:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
+ * **`cors_is_401`:** when set to `true` it will treat CORS errors on calls to `.fetch` as 401s and attempt to refresh your tokens
 
 #### Debugging
 
 Also supported as options are:
 
  * **`expires_in` (seconds):** forcibly expire your access token early
- * **`cors_is_401`:** when set to `true` it will treat CORS errors on calls to `.fetch` as 401s and attempt to refresh your tokens
      * only do this if you are unable to fix the HTTP endpoint to correctly return suitable CORS headers on 401 errors
 
 #### `authorize_callback`
