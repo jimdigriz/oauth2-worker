@@ -149,10 +149,11 @@ function __tokens(config, refresh) {
 
 	function authorize(params, code_verifier) {
 		const id = uuidv4();
+		const key = uuidv4();
 
 		params.append('client_id', config.client_id);
 		params.append('redirect_uri', location.origin + config.redirect_uri),
-		params.append('state', id);
+		params.append('state', [id, key].join(':'));
 
 		if (config.scopes)
 			params.append('scope', config.scopes.join(' '));
@@ -169,25 +170,71 @@ function __tokens(config, refresh) {
 				uri: config.openid.authorization_endpoint + '?' + params.toString()
 			}});
 		}).then(redirect => {
-			if (redirect.data.access_token) {
-				redirect.data._ts = performance.now();
-				return redirect.data;
-			}
+			const ts = new Date().getTime() + new Date().getTimezoneOffset();
+			if (!(redirect.ts > ts - 10 && redirect.ts < ts + 10))
+				throw new Error('redirect has bad ts');
 
-			const params = new URLSearchParams();
+			const encoder = new TextEncoder();
 
-			params.append('grant_type', 'authorization_code');
-			params.append('redirect_uri', location.origin + config.redirect_uri);
-			params.append('code', redirect.data.code);
-			if (code_verifier)
-				params.append('code_verifier', code_verifier);
+			return crypto.subtle.importKey(
+				'raw',
+				encoder.encode(key),
+				{
+					name: 'PBKDF2'
+				},
+				false,
+				['deriveKey']
+			).then(key => {
+				return crypto.subtle.deriveKey(
+					{
+						name: 'PBKDF2',
+						salt: redirect.salt,
+						iterations: 1000,
+						hash: {
+							name: 'SHA-256'
+						}
+					},
+					key,
+					{
+						name: 'AES-GCM',
+						length: 256
+					},
+					false,
+					['decrypt']
+				)
+			}).then(key => {
+				return crypto.subtle.decrypt(
+					{
+						name: 'AES-GCM',
+						iv: redirect.iv,
+						additionalData: encoder.encode(redirect.ts)
+					},
+					key,
+					redirect.data
+				)
+			}).then(plaintext => {
+				const data = Object.fromEntries((new URLSearchParams(ab2bstr(plaintext))).entries());
 
-			return request(params).then(json => {
-				postMessage({ id: id, ok: true });
-				return json;
+				if (data.access_token) {
+					data._ts = performance.now();
+					return data;
+				}
+
+				const params = new URLSearchParams();
+
+				params.append('grant_type', 'authorization_code');
+				params.append('redirect_uri', location.origin + config.redirect_uri);
+				params.append('code', data.code);
+				if (code_verifier)
+					params.append('code_verifier', code_verifier);
+
+				return request(params).then(json => {
+					postMessage({ id: id, ok: true });
+					return json;
+				});
 			});
 		}).catch(error => {
-			postMessage({ id: id, ok: false, data: { error: reason.message } });
+			postMessage({ id: id, ok: false, data: { error: error.message } });
 			return Promise.reject(error);
 		});
 	}

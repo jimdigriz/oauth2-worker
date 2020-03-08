@@ -9,6 +9,7 @@ From a developer perspective, requests to HTTP endpoints requiring [bearer token
 The aim of the project is:
 
  * keep your tokens safe
+     * even implicit tokens are protected with encryption
  * easy to use both for the developer and end user
  * transparently handle the renewing of your tokens
  * handle requests on your behalf by adding an `Authorization` header
@@ -73,8 +74,8 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
      * this really only causes a problem when you administratively expire access tokens
      * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
  * when offline network requests will be queued and not rejected, you should check [`navigator.onLine`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorOnLine/onLine) in your application before making a call if you want to avoid this
- * using the implicit grant will (briefly) expose your access token through `window.onmessage`
-     * refresh tokens are not avaliable so login sessions will also be short
+ * using the implicit grant does not provide refresh tokens so login sessions will also be short
+     * your access token is safe as it is transported encrypted before being sent by `.postMessage`
 
 ## Integration Notes
 
