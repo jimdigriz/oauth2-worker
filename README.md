@@ -80,7 +80,7 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
 
 [Okta](https://okta.com) has the following notes:
 
- * `discovery_document`: `https://dev-[ID].okta.com`
+ * `discovery_document`: [`https://dev-[ID].okta.com`](https://developer.okta.com/docs/reference/api/oidc/#well-known-openid-configuration)
  * does not return a refresh token resulting in short sessions
      * [scope `offline_access`](https://developer.okta.com/docs/guides/refresh-tokens/get-refresh-token/) only works for non-browsers
  * does not return CORS headers on 401s (for example on `/oauth2/v1/userinfo`)
