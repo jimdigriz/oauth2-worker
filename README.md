@@ -62,7 +62,7 @@ You will need:
  * `client_id` to use with your application
  * your API endpoints must return CORS headers for 401 errors
      * this really only causes a problem when you administratively expire access tokens
-     * the worker will not fetch new tokens until the original expiry time of the access token has elapsed
+     * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
 
 # Usage
 
