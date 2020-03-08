@@ -85,7 +85,8 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
  * `discovery_document`: [`https://dev-[ID].okta.com`](https://developer.okta.com/docs/reference/api/oidc/#well-known-openid-configuration)
  * does not return a refresh token resulting in short sessions
      * [scope `offline_access`](https://developer.okta.com/docs/guides/refresh-tokens/get-refresh-token/) only works for non-browsers
- * does not return CORS headers on 401s (for example on `/oauth2/v1/userinfo`)
+ * `cors_is_401`: `true`
+     * for example `/oauth2/v1/userinfo`
 
 ### AWS Cognito
 
@@ -144,6 +145,8 @@ You must supply all of the above, except `discovery_endpoint` is optional but re
 Also supported as options are:
 
  * **`expires_in` (seconds):** forcibly expire your access token early
+ * **`cors_is_401`:** when set to `true` it will treat CORS errors on calls to `.fetch` as 401s and attempt to refresh your tokens
+     * only do this if you are unable to fix the HTTP endpoint to correctly return suitable CORS headers on 401 errors
 
 #### `authorize_callback`
 

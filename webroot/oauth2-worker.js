@@ -304,11 +304,20 @@ function _do_fetch(data, refresh) {
 		data.data.options.headers = data.data.options.headers || new Headers();
 		data.data.options.headers.append('authorization', [ tokens.token_type, tokens.access_token ].join(' '));
 
-		return fetch(data.data.uri, data.data.options).then(response => {
-			if (response.status == 401 && !refresh)
-				return _do_fetch(data, true);
-			return response;
-		});
+		return fetch(data.data.uri, data.data.options).then(
+			response => {
+				if (response.status == 401 && !refresh)
+					return _do_fetch(data, true);
+				return response;
+			},
+			reason => {
+				return config.then(config => {
+					if (config.cors_is_401 && !refresh)
+						return _do_fetch(data, true);
+					return Promise.reject(reason);
+				});
+			}
+		);
 	});
 }
 
