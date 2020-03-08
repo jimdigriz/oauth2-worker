@@ -11,7 +11,7 @@ export const OAuth2 = (function() {
 			return new Promise((resolve, reject) => {
 				pending[data.id] = { resolve: resolve, reject: reject };
 
-				const source = window.open(data.data.uri, '_blank');
+				const source = open(data.data.uri, '_blank');
 
 				const cb = (event) => {
 					if (event.source != source) return;
@@ -33,10 +33,10 @@ export const OAuth2 = (function() {
 
 					source.close();
 
-					window.removeEventListener('message', cb);
+					removeEventListener('message', cb);
 				}
 
-				window.addEventListener('message', cb);
+				addEventListener('message', cb);
 			}).then(data => {
 				promise.resolve({ ok: true });
 			}).catch(error => {
