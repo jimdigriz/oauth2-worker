@@ -51,18 +51,11 @@ Now open http://localhost:5000/ in your browser, open developer tools, go to the
 
 # Preflight
 
-You will need:
+You will need and OAuth2 provider that supports:
 
- * OAuth2 provider:
-     * supports [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
-         * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
-     * supports either the [Authorization Code](https://tools.ietf.org/html/rfc6749#section-1.3.1) (recommended with [PKCE](https://oauth.net/2/pkce/)) or [Implicit](https://tools.ietf.org/html/rfc6749#section-1.3.2) grants
-         * using the implicit grant will (briefly) expose your access token through `window.onmessage`
-         * the implicit grant does not make available a refresh token so login sessions will be short
- * `client_id` to use with your application
- * your API endpoints must return CORS headers for 401 errors
-     * this really only causes a problem when you administratively expire access tokens
-     * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
+ * [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
+     * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+ * either the [Authorization Code](https://tools.ietf.org/html/rfc6749#section-1.3.1) (recommended with [PKCE](https://oauth.net/2/pkce/)) or [Implicit](https://tools.ietf.org/html/rfc6749#section-1.3.2) grants
 
 # Usage
 
@@ -73,6 +66,15 @@ You will need to include in your project from the [`webroot`](webroot) directory
  * **`oauth2-redirect.html` and `oauth2-redirect.js`:** page used to bounce the authentication off
 
 It may help to start looking at the [example demo `index.html`](webroot/index.html) and then use the following as a reference to understand the moving parts.
+
+## Generic Notes
+
+ * your API endpoints must return CORS headers for 401 errors
+     * this really only causes a problem when you administratively expire access tokens
+     * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
+ * when offline network requests will be queued and not rejected, you should check [`navigator.onLine`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorOnLine/onLine) in your application before making a call if you want to avoid this
+ * using the implicit grant will (briefly) expose your access token through `window.onmessage`
+     * refresh tokens are not avaliable so login sessions will also be short
 
 ## Integration Notes
 

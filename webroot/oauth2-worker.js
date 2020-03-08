@@ -68,34 +68,53 @@ const config = new Promise((resolve, reject) => {
 					throw new Error("unable to use 'client_secret'");
 				}
 			}
+
+			if (data.data.scopes && discovery.scopes_supported) {
+				const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
+				if (overlap.length < data.data.scopes.length)
+					throw new Error('not all requested scopes are available');
+			}
 		} catch(error) {
-			console.error(error);
 			return Promise.reject(error);
 		}
 
-		if (data.data.scopes && discovery.scopes_supported) {
-			const overlap = data.data.scopes.filter(scope => discovery.scopes_supported.includes(scope));
-			if (overlap.length < data.data.scopes.length)
-				return Promise.reject(new Error('not all requested scopes are available'));
-		}
-
-		data.data.openid = discovery;
-
-		return data.data;
+		return Promise.resolve(discovery);
 	}
 
-	if (!data.data.discovery_endpoint)
-		return validate({});
+	return new Promise((resolve, reject) => {
+		if (!data.data.discovery_endpoint)
+			return validate({});
 
-	return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(response => {
-		if (!response.ok) return reject(new Error(response.statusText));
-		return response.json().then(discovery => validate(discovery));
-	});
+		let online = null;
+		const promise = new Promise((resolve, reject) => {
+			online = resolve;
+		}).then(() => {
+			return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(response => {
+				if (!response.ok) return reject(new Error(response.statusText));
+				return response.json().then(discovery => validate(discovery));
+			}).then(resolve).catch(reject);
+		});
+		if (navigator.onLine)
+			online();
+		else
+			addEventListener('online', online, { once: true });
+		return promise;
+	}).then(
+		openid => {
+			postMessage({ type: 'state', ok: true, data: { state: 'ready' } });
+			data.data.openid = openid;
+			return data.data;
+		},
+		reason => {
+			postMessage({ type: 'state', ok: false, data: { error: reason.message } });
+			return new Promise();	// stall
+		}
+	);
 });
 
-let __tokens = Promise.reject({});
-function _tokens(refresh) {
-	function request(config, params) {
+let ___tokens = null;
+function __tokens(config, refresh) {
+	function request(params) {
 		const headers = new Headers();
 
 		params.append('client_id', config.client_id);
@@ -115,8 +134,10 @@ function _tokens(refresh) {
 			headers: headers,
 			body: params
 		}).then(response => {
-			if (response.status == 401 && refresh)
-				return _tokens();
+			if (response.status == 401 && !refresh) {
+				___tokens = null;
+				return __tokens(config, true);
+			}
 			if (!response.ok)
 				return Promise.reject(new Error(response.statustext));
 			return response.json();
@@ -126,7 +147,7 @@ function _tokens(refresh) {
 		});
 	}
 
-	function authorize(config, params, code_verifier) {
+	function authorize(params, code_verifier) {
 		const id = uuidv4();
 
 		params.append('client_id', config.client_id);
@@ -136,7 +157,7 @@ function _tokens(refresh) {
 		if (config.scopes)
 			params.append('scope', config.scopes.join(' '));
 
-		// https://developers.google.com/identity/protocols/OAuth2WebServer#offline
+		// https://developers.google.com/identity/protocols/OpenIDConnect#refresh-tokens
 		if (config.discovery_endpoint == 'https://accounts.google.com') {
 			params.append('access_type', 'offline');
 			params.append('prompt', 'consent');
@@ -161,128 +182,120 @@ function _tokens(refresh) {
 			if (code_verifier)
 				params.append('code_verifier', code_verifier);
 
-			return request(config, params).then(
-				json => {
-					postMessage({ id: id, ok: true });
-					return json;
-				},
-				reason => {
-					postMessage({ id: id, ok: false, data: { error: reason.message } });
-					return Promise.reject(reason);
-				}
-			);
-		}).catch(error => Promise.reject(error));
+			return request(params).then(json => {
+				postMessage({ id: id, ok: true });
+				return json;
+			});
+		}).catch(error => {
+			postMessage({ id: id, ok: false, data: { error: reason.message } });
+			return Promise.reject(error);
+		});
 	}
 
-	return Promise.allSettled([config, __tokens]).then(args0 => {
-		const [ config, tokens ] = args0;
+	const params = new URLSearchParams();
+	const args = [];
+	let cb = null;
 
-		if (tokens.value && !refresh)
-			return tokens.value;
+	ok: switch (true) {
+	case !!(___tokens || {}).refresh_token:
+		params.append('grant_type', 'refresh_token');
+		params.append('refresh_token', ___tokens.refresh_token);
+		cb = function(args) {
+			const [ ] = args;
+			return request(params);
+		}
+		break ok;
+	case config.openid.grant_types_supported.includes('authorization_code'):
+		switch (true) {
+		case config.openid.response_types_supported.includes('code'):
+			params.append('response_type', 'code');
 
-		const params = new URLSearchParams();
-		const args = [];
-		let cb = null;
-
-		ok: switch (true) {
-		case refresh && !!(tokens.value || {}).refresh_token:
-			params.append('grant_type', 'refresh_token');
-			params.append('refresh_token', (tokens.value || {}).refresh_token);
-			cb = function(args) {
-				const [ ] = args;
-				return request(config.value, params);
-			}
-			break ok;
-		case config.value.openid.grant_types_supported.includes('authorization_code'):
-			switch (true) {
-			case config.value.openid.response_types_supported.includes('code'):
-				params.append('response_type', 'code');
-
-				if (!config.value.openid.code_challenge_methods_supported) {
-					cb = function(args) {
-						const [ ] = args;
-						return authorize(config.value, params);
-					}
-					break ok;
-				}
-
-				const code_verifier = base64url_encode(ab2bstr(crypto.getRandomValues(new Uint8Array(32))));
-
-				switch (true) {
-				case (config.value.openid.code_challenge_methods_supported || []).includes('S256'):
-					params.append('code_challenge_method', 'S256');
-					args.push(crypto.subtle.digest(
-						{
-							name: 'SHA-256'
-						},
-						(new TextEncoder()).encode(code_verifier)
-					));
-					cb = function(args) {
-						const [ code_challenge ] = args;
-						params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
-						return authorize(config.value, params, code_verifier);
-					};
-					break ok;
-				case (config.value.openid.code_challenge_methods_supported || []).includes('plain'):
-					params.append('code_challenge_method', 'plain');
-					params.append('code_challenge', code_verifier);
-					cb = function(args) {
-						const [ ] = args;
-						return authorize(config.value, params, code_verifier);
-					}
-					break ok;
-				}
-			}
-			return Promise.reject(new Error('NYI'));
-		case config.value.openid.grant_types_supported.includes('implicit'):
-			switch (true) {
-			case config.value.openid.response_types_supported.includes('token'):
-				params.append('response_type', 'token');
+			if (!config.openid.code_challenge_methods_supported) {
 				cb = function(args) {
 					const [ ] = args;
-					return authorize(config.value, params);
+					return authorize(params);
 				}
 				break ok;
 			}
-			return Promise.reject(new Error('NYI'));
-		default:
-			return Promise.reject(new Error('NYI'));
-		}
 
-		return Promise.all(args).then(cb);
-	});
+			const code_verifier = base64url_encode(ab2bstr(crypto.getRandomValues(new Uint8Array(32))));
+
+			switch (true) {
+			case (config.openid.code_challenge_methods_supported || []).includes('S256'):
+				params.append('code_challenge_method', 'S256');
+				args.push(crypto.subtle.digest(
+					{
+						name: 'SHA-256'
+					},
+					(new TextEncoder()).encode(code_verifier)
+				));
+				cb = function(args) {
+					const [ code_challenge ] = args;
+					params.append('code_challenge', base64url_encode(ab2bstr(code_challenge)));
+					return authorize(params, code_verifier);
+				};
+				break ok;
+			case (config.openid.code_challenge_methods_supported || []).includes('plain'):
+				params.append('code_challenge_method', 'plain');
+				params.append('code_challenge', code_verifier);
+				cb = function(args) {
+					const [ ] = args;
+					return authorize(params, code_verifier);
+				}
+				break ok;
+			}
+		}
+		return Promise.reject(new Error('NYI'));
+	case config.openid.grant_types_supported.includes('implicit'):
+		switch (true) {
+		case config.openid.response_types_supported.includes('token'):
+			params.append('response_type', 'token');
+			cb = function(args) {
+				const [ ] = args;
+				return authorize(params);
+			}
+			break ok;
+		}
+		return Promise.reject(new Error('NYI'));
+	default:
+		return Promise.reject(new Error('NYI'));
+	}
+
+	return Promise.all(args).then(cb);
 }
 function tokens(refresh) {
-	if (refresh) return _tokens(refresh);
+	return config.then(config => {
+		if (___tokens && !refresh && performance.now() < ___tokens._ts + (___tokens.expires_in * 1000))
+			return ___tokens;
 
-	return __tokens.then(
-		toks => {
-			if (toks._ts + (toks.expires_in * 1000) < performance.now())
-				return tokens(true);
-			return toks;
-		},
-		reason => {
-			__tokens = _tokens().then(
-				tokens => {
-					config.then(config => {
-						// we use +2 so the demo sees the 401
-						if (tokens.expires_in < (config.expires_in || -2) + 2) return;
-						tokens.expires_in = config.expires_in + 2;
-						__tokens = Promise.resolve(tokens);
-						setTimeout(function(){
-							tokens.access_token = 'EXPIRED';
-							__tokens = Promise.resolve(tokens);
-						}, config.expires_in * 1000);
-					});
-					return tokens;
-				},
-				reason => {
-					console.error('token', reason);
+		let online = null;
+		const promise = new Promise((resolve, reject) => {
+			online = resolve;
+		}).then(() => {
+			return __tokens(config, refresh).then(tokens => {
+				if (!tokens.refresh_token && (___tokens || {}).refresh_token)
+					tokens.refresh_token = ___tokens.refresh_token;
+				___tokens = tokens;
+				if (!___tokens.refresh_token)
+					console.info('no refresh token provided');
+				// we use +2 so the demo sees the 401
+				if (tokens.expires_in > (config.expires_in || -2) + 2) {
+					___tokens.expires_in = config.expires_in + 2;
+					setTimeout(function(){ ___tokens.access_token = 'EXPIRED' }, config.expires_in * 1000);
 				}
-			);
-			return __tokens;
-		}
-	);
+				return ___tokens;
+			});
+		}).catch(error => {
+			console.error('token', error);
+			postMessage({ type: 'state', ok: false, data: { error: error.message } });
+			return new Promise();	// stall
+		});
+		if (navigator.onLine)
+			online();
+		else
+			addEventListener('online', online, { once: true });
+		return promise;
+	});
 }
 
 function _do_fetch(data, refresh) {
@@ -311,14 +324,12 @@ function do_whoami(data) {
 			data.data = {
 				uri: config.openid.userinfo_endpoint
 			};
-			_do_fetch(data).then(response => {
-				return response.json();
-			}).then(json => {
+			_do_fetch(data).then(response => response.json()).then(json => {
 				postMessage({ id: data.id, ok: true, data: json });
-			}).catch(error => {
-				postMessage({ id: data.id, ok: false, data: { error: error.message } });
 			});
 		});
+	}).catch(error => {
+		postMessage({ id: data.id, ok: false, data: { error: error.message } });
 	});
 }
 
@@ -367,4 +378,4 @@ onmessage = function(event) {
 	}
 
 	dispatch(event.data);
-}
+};

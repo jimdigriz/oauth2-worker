@@ -16,10 +16,10 @@ export const OAuth2 = (function() {
 				const cb = (event) => {
 					if (event.source != source) return;
 
-//					console.info(e);
-
 					if (typeof event.data != 'object')
 						return console.warn('orphan', event.data);
+
+//					console.info(e);
 
 					if (event.data.id == data.id)
 						worker.postMessage(event.data)
