@@ -302,7 +302,7 @@ function _do_fetch(data, refresh) {
 	return tokens(refresh).then(tokens => {
 		data.data.options = data.data.options || {};
 		data.data.options.headers = data.data.options.headers || new Headers();
-		data.data.options.headers.append('authorization', [ tokens.token_type, tokens.access_token ].join(' '));
+		data.data.options.headers.set('authorization', [ tokens.token_type, tokens.access_token ].join(' '));
 
 		return fetch(data.data.uri, data.data.options).then(
 			response => {
