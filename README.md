@@ -24,7 +24,7 @@ The choice to use a Web Worker came about as:
      * interface with the Web Worker is only directly available from within (private to) the `OAuth2` class
  * straight forward for the developer to safely use and hopefully hard to make a mistake
      * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
-     * for the authentication, a new tab is opened and the reference to that tab is private to the `OAuth2` class
+     * for the authentication, the `OAuth2` class handles opening a new tab and keeping the reference to it private
          * no third party JavaScript is able to access the window (as it has no name to lookup)
      * if you expose the class, third party JavaScript will be able to make HTTP requests with your access token
          * they could use an HTTP endpoint under their control to receive a copy of your access token
