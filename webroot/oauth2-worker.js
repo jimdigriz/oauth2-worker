@@ -345,7 +345,7 @@ function do_revoke(data) {
 						params.append('token_type_hint', 'access_token');
 						return params;
 					})(new URLSearchParams())
-				})
+				}).then(() => { __tokens.access_token = null })
 			);
 		}
 		if (___tokens.refresh_token) {
@@ -358,7 +358,7 @@ function do_revoke(data) {
 						params.append('token_type_hint', 'refresh_token');
 						return params;
 					})(new URLSearchParams())
-				})
+				}).then(() => { __tokens.refresh_token = null })
 			);
 		}
 
