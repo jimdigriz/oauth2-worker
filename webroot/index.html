@@ -45,7 +45,11 @@
             // if you do not then the login button will be re-enabled
             oauth2.whoami('userinfo').then(whoami => { console.log('userinfo', whoami) });
             setTimeout(function(){
-              oauth2.whoami('userinfo').then(whoami => { console.log('userinfo refresh', whoami) });
+              oauth2.whoami('userinfo').then(whoami => {
+	        console.log('userinfo refresh', whoami)
+
+                oauth2.terminate();
+              });
             }, 3000);
           },
           data => {

@@ -321,6 +321,57 @@ function _do_fetch(data, refresh) {
 	});
 }
 
+function do_revoke(data) {
+	if (!___tokens)
+		return postMessage({ id: data.id, ok: true });
+
+	// https://tools.ietf.org/html/rfc7009
+	return config.then(config => {
+		if (!config.openid.revocation_endpoint)
+			return postMessage({ id: data.id, ok: false });
+
+		const headers = new Headers();
+		if (config.client_secret)
+			headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
+
+		const requests = [];
+		if (performance.now() < ___tokens._ts + (___tokens.expires_in * 1000)) {
+			requests.push(
+				fetch(config.openid.revocation_endpoint, {
+					method: 'POST',
+					headers: headers,
+					body: (function(params){
+						params.append('token', ___tokens.access_token);
+						params.append('token_type_hint', 'access_token');
+						return params;
+					})(new URLSearchParams())
+				})
+			);
+		}
+		if (___tokens.refresh_token) {
+			requests.push(
+				fetch(config.openid.revocation_endpoint, {
+					method: 'POST',
+					headers: headers,
+					body: (function(params){
+						params.append('token', ___tokens.refresh_token);
+						params.append('token_type_hint', 'refresh_token');
+						return params;
+					})(new URLSearchParams())
+				})
+			);
+		}
+
+		return Promise.all(requests).then(
+			() => {
+				__tokens = null;
+				postMessage({ id: data.id, ok: true })
+			},
+			() => postMessage({ id: data.id, ok: false })
+		);
+	});
+}
+
 function do_whoami(data) {
 	tokens().then(tokens => {
 		if (tokens.id_token && data.data.type != 'userinfo') {
@@ -372,11 +423,14 @@ onmessage = function(event) {
 	case '_config':
 		dispatch = _config;
 		break;
-	case 'whoami':
-		dispatch = do_whoami;
-		break;
 	case 'fetch':
 		dispatch = do_fetch;
+		break;
+	case 'revoke':
+		dispatch = do_revoke;
+		break;
+	case 'whoami':
+		dispatch = do_whoami;
 		break;
 	default:
 		if (!(event.data.id in pending))

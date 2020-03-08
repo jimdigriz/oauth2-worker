@@ -178,18 +178,11 @@ This creates a callback to be called whenever authentication is required, and wh
 
 **N.B.** your application must support handling this callback being called at anytime such as by opening a [modal](https://en.wikipedia.org/wiki/Modal_window)
 
-### `.whoami()`
+### `.terminate`
 
-    oauth2.whoami().then(whoami => { console.log(whoami) });
+Terminate the web worker after attempting to call `.revoke` on your behalf.
 
-Returns the JSON parsed version of either:
-
- * `id_token` from the authentication
- * if no `id_token` was provided by the endpoint, then [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo) is consulted
-
-If nothing is available, then `null` is returned.
-
-**N.B.** you may force returning UserInfo by calling `oauth2.whoami('userinfo').then(...)`
+**N.B.** the instance object will have undefined behaviour once this is done.
 
 ### `.fetch()`
 
@@ -216,6 +209,33 @@ Where due to `.postMessage()` limitations differing from the Fetch API by:
 On error, response is:
 
     { ok: false, error: "..." }
+
+### `.revoke()`
+
+If possible the worker will revoke its access tokens with your OAuth2 provider.
+
+On success:
+
+    { ok: true }
+
+On failure (including your provider does not support revocation):
+
+    { ok: false }
+
+Tokens are only removed from the web worker on sucess.
+
+### `.whoami()`
+
+    oauth2.whoami().then(whoami => { console.log(whoami) });
+
+Returns the JSON parsed version of either:
+
+ * `id_token` from the authentication
+ * if no `id_token` was provided by the endpoint, then [UserInfo](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo) is consulted
+
+If nothing is available, then `null` is returned.
+
+**N.B.** you may force returning UserInfo by calling `oauth2.whoami('userinfo').then(...)`
 
 ## Serving HTTP Headers for your Application
 

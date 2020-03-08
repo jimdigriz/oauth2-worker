@@ -96,8 +96,11 @@ export const OAuth2 = (function() {
 		worker.postMessage({ type: '_config', data: config });
 	}
 
-	OAuth2.prototype.whoami = function(type) {
-		return send({ type: 'whoami', data: { type: type } });
+	OAuth2.prototype.terminate = function() {
+		return this.revoke().then(
+			() => worker.terminate(),
+			() => worker.terminate()
+		);
 	};
 
 	OAuth2.prototype.fetch = function(uri, options) {
@@ -124,6 +127,14 @@ export const OAuth2 = (function() {
 			response.headers = new Headers(response.headers);
 			return response;
 		});
+	};
+
+	OAuth2.prototype.revoke = function() {
+		return send({ type: 'revoke' });
+	};
+
+	OAuth2.prototype.whoami = function(type) {
+		return send({ type: 'whoami', data: { type: type } });
 	};
 
 	return OAuth2;
