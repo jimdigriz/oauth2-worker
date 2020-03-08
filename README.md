@@ -41,7 +41,9 @@ Now run:
 
     ./demo.py
 
-Now open http://localhost:5000/ in your browser, open developer tools, go to the network panel and also open the JavaScript console there too.  Now click on 'Login' and inspect the activity.
+Now open http://localhost:5000/ in your browser, open developer tools, go to the network panel and also open the JavaScript console there too.  Now click on 'Login' and inspect the activity; the access token is forcibly expired after two seconds.
+
+**N.B.** if your OAuth2 provider does not return a refresh token the automatic and transparent token renewing is unavailable when the access token expires and the login button will be re-enabled
 
 ## Related Links
 
@@ -60,7 +62,7 @@ You will need:
  * `client_id` to use with your application
  * your API endpoints must return CORS headers for 401 errors
      * this really only causes a problem when you administratively expire access tokens
-     * the worker will not fetch new tokens untill the original expiry time of the access token has elapsed
+     * the worker will not fetch new tokens until the original expiry time of the access token has elapsed
 
 # Usage
 
