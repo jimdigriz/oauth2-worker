@@ -22,6 +22,16 @@ function base64url_decode(s) {
 
 const pending = {};
 
+const untilOnline = new Promise(function _untilOnline(resolve, reject) {
+	function cb() {
+		addEventListener('offline', function(){ untilOnline = new Promise(_untilOnline) }, { once: true });
+		return resolve();
+	}
+	if (navigator.onLine)
+		return cb();
+	addEventListener('online', cb, { once: true });
+});
+
 let _config = null;
 const config = new Promise((resolve, reject) => {
 	_config = resolve;
@@ -85,20 +95,12 @@ const config = new Promise((resolve, reject) => {
 		if (!data.data.discovery_endpoint)
 			return validate({});
 
-		let online = null;
-		const promise = new Promise((resolve, reject) => {
-			online = resolve;
-		}).then(() => {
+		return untilOnline.then(() => {
 			return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(response => {
 				if (!response.ok) return reject(new Error(response.statusText));
 				return response.json().then(discovery => validate(discovery));
 			}).then(resolve).catch(reject);
 		});
-		if (navigator.onLine)
-			online();
-		else
-			addEventListener('online', online, { once: true });
-		return promise;
 	}).then(
 		openid => {
 			postMessage({ type: 'state', ok: true, data: { state: 'ready' } });
@@ -112,8 +114,8 @@ const config = new Promise((resolve, reject) => {
 	);
 });
 
-let ___tokens = null;
-function __tokens(config, refresh) {
+let __tokens = null;
+function _tokens(config, refresh) {
 	function request(params) {
 		const headers = new Headers();
 
@@ -135,8 +137,8 @@ function __tokens(config, refresh) {
 			body: params
 		}).then(response => {
 			if (response.status == 401 && !refresh) {
-				___tokens = null;
-				return __tokens(config, true);
+				__tokens = null;
+				return _tokens(config, true);
 			}
 			if (!response.ok)
 				return Promise.reject(new Error(response.statustext));
@@ -244,9 +246,9 @@ function __tokens(config, refresh) {
 	let cb = null;
 
 	ok: switch (true) {
-	case !!(___tokens || {}).refresh_token:
+	case !!(__tokens || {}).refresh_token:
 		params.append('grant_type', 'refresh_token');
-		params.append('refresh_token', ___tokens.refresh_token);
+		params.append('refresh_token', __tokens.refresh_token);
 		cb = function(args) {
 			const [ ] = args;
 			return request(params);
@@ -312,36 +314,28 @@ function __tokens(config, refresh) {
 }
 function tokens(refresh) {
 	return config.then(config => {
-		if (___tokens && !refresh && performance.now() < ___tokens._ts + (___tokens.expires_in * 1000))
-			return ___tokens;
+		if (__tokens && !refresh && performance.now() < __tokens._ts + (__tokens.expires_in * 1000))
+			return __tokens;
 
-		let online = null;
-		const promise = new Promise((resolve, reject) => {
-			online = resolve;
-		}).then(() => {
-			return __tokens(config, refresh).then(tokens => {
-				if (!tokens.refresh_token && (___tokens || {}).refresh_token)
-					tokens.refresh_token = ___tokens.refresh_token;
-				___tokens = tokens;
-				if (!___tokens.refresh_token)
+		return untilOnline.then(() => {
+			return _tokens(config, refresh).then(tokens => {
+				if (!tokens.refresh_token && (__tokens || {}).refresh_token)
+					tokens.refresh_token = __tokens.refresh_token;
+				__tokens = tokens;
+				if (!__tokens.refresh_token)
 					console.info('no refresh token provided');
 				// we use +2 so the demo sees the 401
 				if (tokens.expires_in > (config.expires_in || -2) + 2) {
-					___tokens.expires_in = config.expires_in + 2;
-					setTimeout(function(){ ___tokens.access_token = 'EXPIRED' }, config.expires_in * 1000);
+					__tokens.expires_in = config.expires_in + 2;
+					setTimeout(function(){ __tokens.access_token = 'EXPIRED' }, config.expires_in * 1000);
 				}
-				return ___tokens;
+				return __tokens;
 			});
 		}).catch(error => {
 			console.error('token', error);
 			postMessage({ type: 'state', ok: false, data: { error: error.message } });
 			return new Promise();	// stall
 		});
-		if (navigator.onLine)
-			online();
-		else
-			addEventListener('online', online, { once: true });
-		return promise;
 	});
 }
 
@@ -369,7 +363,7 @@ function _do_fetch(data, refresh) {
 }
 
 function do_revoke(data) {
-	if (!___tokens)
+	if (!__tokens)
 		return postMessage({ id: data.id, ok: true });
 
 	// https://tools.ietf.org/html/rfc7009
@@ -382,26 +376,26 @@ function do_revoke(data) {
 			headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
 
 		const requests = [];
-		if (performance.now() < ___tokens._ts + (___tokens.expires_in * 1000)) {
+		if (performance.now() < __tokens._ts + (__tokens.expires_in * 1000)) {
 			requests.push(
 				fetch(config.openid.revocation_endpoint, {
 					method: 'POST',
 					headers: headers,
 					body: (function(params){
-						params.append('token', ___tokens.access_token);
+						params.append('token', __tokens.access_token);
 						params.append('token_type_hint', 'access_token');
 						return params;
 					})(new URLSearchParams())
 				}).then(() => { __tokens.access_token = null })
 			);
 		}
-		if (___tokens.refresh_token) {
+		if (__tokens.refresh_token) {
 			requests.push(
 				fetch(config.openid.revocation_endpoint, {
 					method: 'POST',
 					headers: headers,
 					body: (function(params){
-						params.append('token', ___tokens.refresh_token);
+						params.append('token', __tokens.refresh_token);
 						params.append('token_type_hint', 'refresh_token');
 						return params;
 					})(new URLSearchParams())
