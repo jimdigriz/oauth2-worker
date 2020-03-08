@@ -199,7 +199,7 @@ Where due to `.postMessage()` limitations differing from the Fetch API by:
 
 The response on success is:
 
-    { ok: true, status: 200, headers: Headers, body: Blob }
+    { ok: true, status: 200, headers: ..., body: Blob }
 
 Where due to `.postMessage()` limitations differing from the Fetch API by:
 
