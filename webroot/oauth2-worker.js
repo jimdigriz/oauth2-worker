@@ -25,7 +25,7 @@ const pending = {};
 const untilOnline = new Promise(function _untilOnline(resolve, reject) {
 	function cb() {
 		addEventListener('offline', function(){ untilOnline = new Promise(_untilOnline) }, { once: true });
-		return resolve();
+		return resolve(true);
 	}
 	if (navigator.onLine)
 		return cb();
@@ -113,9 +113,40 @@ const config = new Promise((resolve, reject) => {
 		}
 	);
 });
+let _tokens = null, __tokens = null;
+function tokens(refresh, current) {
+	if (_tokens)
+		return _tokens;
+	if ((__tokens && !refresh && (performance.now() > __tokens.ts + __tokens.expires_in * 1000)) || current)
+		return Promise.resolve(__tokens);
+	_tokens = Promise.all([config, untilOnline]).then(args => {
+		const [ config, online ] = args;
+		return tokens2(config, __tokens, refresh);
+	}).then(tokens => {
+		if (!tokens.refresh_token && (__tokens || {}).refresh_token)
+			tokens.refresh_token = __tokens.refresh_token;
+		if (!tokens.refresh_token)
+			console.info('no refresh token provided');
+		__tokens = tokens;
+		_tokens = null;
+		// we use +2 so the demo sees the 401
+		if (tokens.expires_in > (config.expires_in || -2) + 2) {
+			__tokens.expires_in = config.expires_in + 2;
+			setTimeout(function(){
+				console.debug('corrupting access token')
+				__tokens.access_token = 'EXPIRED';
+			}, config.expires_in * 1000);
+		}
+		return tokens;
+	}).catch(error => {
+		console.error('token', error);
+		postMessage({ type: 'state', ok: false, data: { error: error.message } });
+		return new Promise();	// stall
+	});
 
-let __tokens = null;
-function _tokens(config, refresh) {
+	return _tokens;
+}
+function tokens2(config, tokens, refresh) {
 	function request(params) {
 		const headers = new Headers();
 
@@ -136,10 +167,8 @@ function _tokens(config, refresh) {
 			headers: headers,
 			body: params
 		}).then(response => {
-			if (response.status == 401 && !refresh) {
-				__tokens = null;
-				return _tokens(config, true);
-			}
+			if (response.status == 401 && !refresh)
+				return tokens2(config, tokens, true);
 			if (!response.ok)
 				return Promise.reject(new Error(response.statustext));
 			return response.json();
@@ -246,9 +275,9 @@ function _tokens(config, refresh) {
 	let cb = null;
 
 	ok: switch (true) {
-	case !!(__tokens || {}).refresh_token:
+	case !!(tokens || {}).refresh_token:
 		params.append('grant_type', 'refresh_token');
-		params.append('refresh_token', __tokens.refresh_token);
+		params.append('refresh_token', tokens.refresh_token);
 		cb = function(args) {
 			const [ ] = args;
 			return request(params);
@@ -312,32 +341,6 @@ function _tokens(config, refresh) {
 
 	return Promise.all(args).then(cb);
 }
-function tokens(refresh) {
-	return config.then(config => {
-		if (__tokens && !refresh && performance.now() < __tokens._ts + (__tokens.expires_in * 1000))
-			return __tokens;
-
-		return untilOnline.then(() => {
-			return _tokens(config, refresh).then(tokens => {
-				if (!tokens.refresh_token && (__tokens || {}).refresh_token)
-					tokens.refresh_token = __tokens.refresh_token;
-				__tokens = tokens;
-				if (!__tokens.refresh_token)
-					console.info('no refresh token provided');
-				// we use +2 so the demo sees the 401
-				if (tokens.expires_in > (config.expires_in || -2) + 2) {
-					__tokens.expires_in = config.expires_in + 2;
-					setTimeout(function(){ __tokens.access_token = 'EXPIRED' }, config.expires_in * 1000);
-				}
-				return __tokens;
-			});
-		}).catch(error => {
-			console.error('token', error);
-			postMessage({ type: 'state', ok: false, data: { error: error.message } });
-			return new Promise();	// stall
-		});
-	});
-}
 
 function _do_fetch(data, refresh) {
 	return tokens(refresh).then(tokens => {
@@ -362,14 +365,16 @@ function _do_fetch(data, refresh) {
 	});
 }
 
+// https://tools.ietf.org/html/rfc7009
 function do_revoke(data) {
-	if (!__tokens)
-		return postMessage({ id: data.id, ok: true });
+	return Promise.all([config, tokens(false, true)]).then(args => {
+		const [ config, tokens ] = args;
 
-	// https://tools.ietf.org/html/rfc7009
-	return config.then(config => {
+		if (!tokens)
+			return Promise.resolve();
+
 		if (!config.openid.revocation_endpoint)
-			return postMessage({ id: data.id, ok: false });
+			return Promise.reject();
 
 		const headers = new Headers();
 		if (config.client_secret)
@@ -403,14 +408,14 @@ function do_revoke(data) {
 			);
 		}
 
-		return Promise.all(requests).then(
-			() => {
-				__tokens = null;
-				postMessage({ id: data.id, ok: true })
-			},
-			() => postMessage({ id: data.id, ok: false })
-		);
-	});
+		return Promise.all(requests);
+	}).then(
+		() => {
+			__tokens = null;
+			postMessage({ id: data.id, ok: true })
+		},
+		() => postMessage({ id: data.id, ok: false })
+	);
 }
 
 function do_whoami(data) {

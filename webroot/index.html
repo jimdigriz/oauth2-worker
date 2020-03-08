@@ -47,7 +47,6 @@
             setTimeout(function(){
               oauth2.whoami('userinfo').then(whoami => {
 	        console.log('userinfo refresh', whoami)
-
                 oauth2.terminate();
               });
             }, 3000);
