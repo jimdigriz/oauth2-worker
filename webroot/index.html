@@ -23,12 +23,13 @@
   <script type="module">
     import { OAuth2 } from './oauth2.js';
 
-    const authorize = (promise) => {
+    const authorize = function(promise) {
       const button = document.getElementById('button');
       button.textContent = 'Login';
       button.removeAttribute('disabled');
-      button.addEventListener('click', event => {
+      button.onclick = function(event) {
         event.preventDefault();
+        event.target.onclick = undefined;
 
         new Promise((resolve, reject) => {
           button.setAttribute('disabled', '');
@@ -55,7 +56,7 @@
           console.log('error', error);
           button.textContent = 'Login Error';
         });
-      }, { once: true });
+      };
     };
 
     const oauth2 = new OAuth2({
