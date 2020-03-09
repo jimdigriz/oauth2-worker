@@ -23,6 +23,7 @@ The choice to use a Web Worker came about as:
      * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult for a developer and requires session management
  * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as messages would all come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
      * interface with the Web Worker is only directly available from within (private to) the `OAuth2` class
+     * could have been implemented instead fully as a class but this would have made development error prone and a mistake could leak your tokens; the Web Worker implementaion offers a boundary that cannot be bypassed
  * straight forward for the developer to safely use and hopefully hard to make a mistake
      * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
      * for the authentication, the `OAuth2` class handles opening a new tab and keeping the reference to it private
