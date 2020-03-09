@@ -9,7 +9,7 @@ From a developer perspective, requests to HTTP endpoints requiring [bearer token
 The aim of the project is:
 
  * keep your tokens safe
-     * even implicit tokens are protected with encryption
+     * implicit tokens are also protected and not leaked
  * easy to use both for the developer and end user
  * transparently handle the renewing of your tokens
  * handle requests on your behalf by adding an `Authorization` header
@@ -27,6 +27,7 @@ The choice to use a Web Worker came about as:
      * you are responsible for making sure the instigated `OAuth2` class is [not exposed outside of a closure](https://philipwalton.com/articles/implementing-private-and-protected-members-in-javascript/)
      * for the authentication, the `OAuth2` class handles opening a new tab and keeping the reference to it private
          * no third party JavaScript is able to access the window (as it has no name to lookup)
+         * your tokens are safe as they are encrypted before being transported via `.postMessage`
      * if you expose the class, third party JavaScript will be able to make HTTP requests with your access token
          * they could use an HTTP endpoint under their control to receive a copy of your access token
              * mitigations for this are covered in [Serving HTTP Headers for your Application](#serving-http-headers-for-your-application)
@@ -75,7 +76,6 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
      * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
  * when offline network requests will be queued and not rejected, you should check [`navigator.onLine`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorOnLine/onLine) in your application before making a call if you want to avoid this
  * using the implicit grant does not provide refresh tokens so login sessions will also be short
-     * your access token is safe as it is transported encrypted before being sent by `.postMessage`
 
 ## Integration Notes
 
