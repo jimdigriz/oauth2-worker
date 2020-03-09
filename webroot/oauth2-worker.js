@@ -45,6 +45,7 @@ const config = new Promise((resolve, reject) => {
 		// https://tools.ietf.org/html/rfc8414
 		discovery.grant_types_supported = discovery.grant_types_supported || [ 'authorization_code', 'implicit' ];
 		discovery.token_endpoint_auth_methods_supported = discovery.token_endpoint_auth_methods_supported || [ 'client_secret_basic' ];
+		discovery.revocation_endpoint_auth_methods_supported = discovery.revocation_endpoint_auth_methods_supported || [ 'client_secret_basic' ];
 
 		try {
 			ok: switch (true) {
@@ -93,7 +94,7 @@ const config = new Promise((resolve, reject) => {
 
 	return new Promise((resolve, reject) => {
 		if (!data.data.discovery_endpoint)
-			return validate({});
+			return validate({}).then(resolve).catch(reject);
 
 		return untilOnline.then(() => {
 			return fetch(data.data.discovery_endpoint + '/.well-known/openid-configuration').then(response => {
@@ -195,8 +196,8 @@ function tokens2(config, tokens, refresh) {
 		if (config.scopes)
 			params.append('scope', config.scopes.join(' '));
 
-		// https://developers.google.com/identity/protocols/OpenIDConnect#refresh-tokens
-		if (config.discovery_endpoint == 'https://accounts.google.com') {
+		if (!tokens && config.discovery_endpoint == 'https://accounts.google.com') {
+			// https://developers.google.com/identity/protocols/OpenIDConnect#refresh-tokens
 			params.append('access_type', 'offline');
 			params.append('prompt', 'consent');
 		}
@@ -379,9 +380,23 @@ function do_revoke(data) {
 		if (!config.openid.revocation_endpoint)
 			return Promise.reject();
 
+		const params = new URLSearchParams();
+
 		const headers = new Headers();
-		if (config.client_secret)
-			headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
+		if (config.client_secret) {
+			switch (true) {
+			case config.openid.revocation_endpoint_auth_methods_supported.includes('client_secret_basic'):
+				headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
+				break;
+			case config.openid.revocation_endpoint_auth_methods_supported.includes('client_secret_post'):
+				params.append('client_secret', config.client_secret);
+				break;
+			case config.openid.revocation_endpoint_auth_methods_supported.includes('none'):
+				break;
+			default:
+				return Promise.reject(new Error('NYI'));
+			}
+		}
 
 		const requests = [];
 		if (performance.now() < __tokens._ts + __tokens.expires_in * 1000) {
@@ -393,7 +408,7 @@ function do_revoke(data) {
 						params.append('token', __tokens.access_token);
 						params.append('token_type_hint', 'access_token');
 						return params;
-					})(new URLSearchParams())
+					})(new URLSearchParams(params.toString()))
 				}).then(() => { __tokens.access_token = null })
 			);
 		}
@@ -406,7 +421,7 @@ function do_revoke(data) {
 						params.append('token', __tokens.refresh_token);
 						params.append('token_type_hint', 'refresh_token');
 						return params;
-					})(new URLSearchParams())
+					})(new URLSearchParams(params.toString()))
 				}).then(() => { __tokens.refresh_token = null })
 			);
 		}

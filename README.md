@@ -86,10 +86,11 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
 [Okta](https://okta.com) has the following notes:
 
  * `discovery_document`: [`https://dev-[ID].okta.com`](https://developer.okta.com/docs/reference/api/oidc/#well-known-openid-configuration)
- * does not return a refresh token resulting in short sessions
-     * [scope `offline_access`](https://developer.okta.com/docs/guides/refresh-tokens/get-refresh-token/) only works for non-browsers
  * `cors_is_401`: `true`
      * for example `/oauth2/v1/userinfo`
+ * does not return a refresh token resulting in short sessions
+     * [scope `offline_access`](https://developer.okta.com/docs/guides/refresh-tokens/get-refresh-token/) only works for non-browsers
+ * revoking tokens does not work as authentication is required for PKCE clients though `revocation_endpoint_auth_methods_supported` advertises support for `none`
 
 ### AWS Cognito
 
