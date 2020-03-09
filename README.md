@@ -138,7 +138,7 @@ Where:
      * keys found in here will overwrite keys from `discovery_endpoint`
      * use this to override the advertised [authorization server metadata](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#authorization-server-metadata)
      * make sure to monitor for updates to the original document by your OAuth2 provider
- * **`redirect_uri (default: `/oauth2-redirect.html`)`:** the redirect URL to bounce the the authentication through
+ * **`redirect_uri` (default: `/oauth2-redirect.html`):** the redirect URL to bounce the the authentication through
      * this must be registered with your OAuth2 provider
  * **`scopes` (default: `[]`, recommended: `[ 'openid', 'email', 'profile' ]`):** scopes you wish to obtain a token for
  * **`authorize_callback` [required]:** there is no `login` method as access tokens can expire at any given moment.  This provides a callback (detailed below) that has the application provide a user interaction to start the authentication 
