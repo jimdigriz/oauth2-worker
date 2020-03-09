@@ -101,50 +101,53 @@ const config = new Promise((resolve, reject) => {
 				return response.json().then(discovery => validate(discovery));
 			}).then(resolve).catch(reject);
 		});
-	}).then(
-		openid => {
-			postMessage({ type: 'state', ok: true, data: { state: 'ready' } });
-			data.data.openid = openid;
-			return data.data;
-		},
-		reason => {
-			postMessage({ type: 'state', ok: false, data: { error: reason.message } });
-			return new Promise();	// stall
-		}
-	);
+	}).then(openid => {
+		postMessage({ type: 'state', ok: true, data: { state: 'ready' } });
+		data.data.openid = openid;
+		return data.data;
+	});
 });
 let _tokens = null, __tokens = null;
 function tokens(refresh, current) {
-	if (_tokens)
-		return _tokens;
-	if ((__tokens && !refresh && (performance.now() > __tokens.ts + __tokens.expires_in * 1000)) || current)
-		return Promise.resolve(__tokens);
-	_tokens = Promise.all([config, untilOnline]).then(args => {
-		const [ config, online ] = args;
-		return tokens2(config, __tokens, refresh);
-	}).then(tokens => {
-		if (!tokens.refresh_token && (__tokens || {}).refresh_token)
-			tokens.refresh_token = __tokens.refresh_token;
-		if (!tokens.refresh_token)
-			console.info('no refresh token provided');
-		__tokens = tokens;
-		_tokens = null;
-		// we use +2 so the demo sees the 401
-		if (tokens.expires_in > (config.expires_in || -2) + 2) {
-			__tokens.expires_in = config.expires_in + 2;
-			setTimeout(function(){
-				console.debug('corrupting access token')
-				__tokens.access_token = 'EXPIRED';
-			}, config.expires_in * 1000);
-		}
-		return tokens;
-	}).catch(error => {
-		console.error('token', error);
-		postMessage({ type: 'state', ok: false, data: { error: error.message } });
-		return new Promise();	// stall
-	});
+	return new Promise((resolve, reject) => {
+		if (_tokens)
+			return _tokens;
+		if ((__tokens && !refresh && (performance.now() < __tokens._ts + __tokens.expires_in * 1000 * 0.7)) || current)
+			return resolve(__tokens);
 
-	return _tokens;
+		let cfg = null;
+
+		_tokens = config.then(config => {	// check config *before* online
+			cfg = config;
+			return untilOnline;
+		}).then(online => {
+			return tokens2(cfg, __tokens, refresh);
+		}).then(tokens => {
+			if (!tokens.refresh_token && (__tokens || {}).refresh_token)
+				tokens.refresh_token = __tokens.refresh_token;
+			if (!tokens.refresh_token)
+				console.info('no refresh token provided');
+			if (!tokens.expires_in)
+				tokens.expires_in = Infinity;
+			__tokens = tokens;
+			// +3*(1/0.7) so the demo sees the 401
+			if (tokens.expires_in > (cfg.expires_in || -5) + 5) {
+				__tokens.expires_in = cfg.expires_in + 5;
+				setTimeout(function(){
+					console.debug('corrupting access token')
+					__tokens.access_token = 'EXPIRED';
+				}, cfg.expires_in * 1000);
+			}
+			resolve(__tokens);
+			_tokens = null;
+		}).catch(error => {
+			console.error('token', error);
+			postMessage({ type: 'state', ok: false, data: { error: error.message } });
+			reject();
+		});
+
+		return _tokens;
+	});
 }
 function tokens2(config, tokens, refresh) {
 	function request(params) {
@@ -161,6 +164,9 @@ function tokens2(config, tokens, refresh) {
 				break;
 			}
 		}
+
+		if (config.scopes)
+			params.append('scope', config.scopes.join(' '));
 
 		return fetch(config.openid.token_endpoint, {
 			method: 'POST',
@@ -202,7 +208,7 @@ function tokens2(config, tokens, refresh) {
 			}});
 		}).then(redirect => {
 			const ts = new Date().getTime() + new Date().getTimezoneOffset();
-			if (!(redirect.ts > ts - 10 && redirect.ts < ts + 10))
+			if (!(redirect.ts > ts - 10000 && redirect.ts < ts + 10000))
 				throw new Error('redirect has bad ts');
 
 			const encoder = new TextEncoder();
@@ -264,9 +270,6 @@ function tokens2(config, tokens, refresh) {
 					return json;
 				});
 			});
-		}).catch(error => {
-			postMessage({ id: id, ok: false, data: { error: error.message } });
-			return Promise.reject(error);
 		});
 	}
 
@@ -381,7 +384,7 @@ function do_revoke(data) {
 			headers.append('authorization', 'Basic ' + btoa([ config.client_id, config.client_secret ].join(':')));
 
 		const requests = [];
-		if (performance.now() < __tokens._ts + (__tokens.expires_in * 1000)) {
+		if (performance.now() < __tokens._ts + __tokens.expires_in * 1000) {
 			requests.push(
 				fetch(config.openid.revocation_endpoint, {
 					method: 'POST',
