@@ -75,6 +75,7 @@ It may help to start looking at the [example demo `index.html`](webroot/index.ht
  * your API endpoints must return CORS headers for 401 errors
      * this really only causes a problem when you administratively expire access tokens
      * without this the worker will not fetch fresh tokens until after the original expiry time has elapsed
+     * as a last resort, use `cors_is_401` if you are unable to arrange for this to be fixed on the endpoints you use
  * when offline network requests will be queued and not rejected, you should check [`navigator.onLine`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorOnLine/onLine) in your application before making a call if you want to avoid this
  * using the implicit grant does not provide refresh tokens so login sessions will also be short
 
