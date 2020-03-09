@@ -180,9 +180,23 @@ This creates a callback to be called whenever authentication is required, and wh
 
 ### `.terminate`
 
-Terminate the web worker after attempting to call `.revoke` on your behalf.
+Terminate the web worker which will automatically call `.revoke` on your behalf.
 
-**N.B.** the instance object will have undefined behaviour once this is done.
+You should not use the instance object after calling this, its behaviour is undefined.
+
+### `.revoke()`
+
+If possible the worker will revoke its access tokens with your OAuth2 provider.
+
+On success:
+
+    { ok: true }
+
+On failure (including your provider does not support revocation):
+
+    { ok: false }
+
+Tokens are only removed from the web worker on sucess.
 
 ### `.fetch()`
 
@@ -209,20 +223,6 @@ Where due to `.postMessage()` limitations differing from the Fetch API by:
 On error, response is:
 
     { ok: false, error: "..." }
-
-### `.revoke()`
-
-If possible the worker will revoke its access tokens with your OAuth2 provider.
-
-On success:
-
-    { ok: true }
-
-On failure (including your provider does not support revocation):
-
-    { ok: false }
-
-Tokens are only removed from the web worker on sucess.
 
 ### `.whoami()`
 
