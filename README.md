@@ -149,7 +149,6 @@ Where:
 Also supported as options are:
 
  * **`expires_in` (seconds):** forcibly expire your access token early
-     * only do this if you are unable to fix the HTTP endpoint to correctly return suitable CORS headers on 401 errors
 
 #### `authorize_callback`
 
