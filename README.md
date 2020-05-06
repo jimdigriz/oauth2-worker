@@ -156,22 +156,29 @@ Also supported as options are:
 Assuming you have a button on your page (with the ID `button`) you can use something like:
 
     const authorize = function(promise) {
+    
       // set up the UI to reflect we need to log in but
       // as our login window will be opened in a new tab,
       // we require an user interaction (click) to open it
-      }, { once: true });
+    
       document.getElementById('button').onclick = function(event) {
         event.preventDefault();
         event.target.onclick = undefined;
 
         new Promise((resolve, reject) => {
+    
           // set up the UI to reflect that we are attempting to login
+    
           promise.resolve({ resolve: resolve, reject: reject });
         }).then(data => {
+    
           // set up the UI to reflect that login has been successful
+    
           console.log('success', data);
         }).catch(error => {
+    
           // set up the UI to reflect that login has failed
+    
           console.log('failed', error);
         });
       };
