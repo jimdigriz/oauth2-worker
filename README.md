@@ -58,6 +58,7 @@ You will need and OAuth2 provider that supports:
 
  * [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
      * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+     * this is technically optional as you can mock it using `discovery_overlay` described below and providing a value for `authorization_endpoint`
  * either the [Authorization Code](https://tools.ietf.org/html/rfc6749#section-1.3.1) (recommended with [PKCE](https://oauth.net/2/pkce/)) or [Implicit](https://tools.ietf.org/html/rfc6749#section-1.3.2) grants
 
 # Usage
