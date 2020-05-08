@@ -18,7 +18,7 @@ The aim of the project is:
 The choice to use a Web Worker came about as:
 
  * provides a non-technical end user a familiar, expected and non-overridable bullet proof way to log out by closing or reloading the tab
-     * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) ([which others have considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff) and [even implemented](https://itnext.io/using-service-worker-as-an-auth-relay-5abc402878dd)) makes this difficult for the end user to control
+     * using a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) (which others have [considered](https://developers.google.com/web/updates/2016/06/2-cookie-handoff) and even [implemented](https://itnext.io/using-service-worker-as-an-auth-relay-5abc402878dd)) makes this difficult for the end user to control
  * every tab is its own session
      * Service Workers are shared between tabs so being logged in concurrently as more than one user becomes difficult for a developer and requires session management
  * both a cross-origin IFRAME or Service Worker implementation would be unable to distinguish between authorized (your code) and unauthorized (third party JavaScript) use of its interface as messages would all come from the [same-origin source](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
