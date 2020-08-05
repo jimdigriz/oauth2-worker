@@ -54,7 +54,7 @@ Now open http://localhost:5000/ in your browser, open developer tools, go to the
 
 # Preflight
 
-You will need and OAuth2 provider that supports:
+You will need an OAuth2 provider that supports:
 
  * [discovery (`/.well-known/openid-configuration`)](https://www.rfc-editor.org/rfc/rfc8414.html)
      * including [CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
